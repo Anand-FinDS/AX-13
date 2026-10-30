@@ -1,0 +1,5 @@
+# Phase 4 only. Heavy (pulls torch). Install after deciding WhisperX vs Indic ASR
+# from the sample-clip test. Needs HF_TOKEN with pyannote model terms accepted.
+whisperx>=3.1
+pyannote.audio>=3.1
+soundfile>=0.12

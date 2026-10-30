@@ -1,0 +1,47 @@
+# AX-13 local infrastructure. Start: docker compose -f infra/docker-compose.yml up -d
+# Image tags are pinned for a repeatable demo; bump deliberately, not by accident.
+name: ax13
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ax13-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ax13}
+      POSTGRES_USER: ${POSTGRES_USER:-ax13}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ax13_local}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ax13} -d ${POSTGRES_DB:-ax13}"]
+      interval: 5s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: ax13-qdrant
+    ports:
+      - "6333:6333"   # REST + web UI at /dashboard
+      - "6334:6334"   # gRPC
+    volumes:
+      - qdrant:/qdrant/storage
+
+  # One container: OpenTelemetry Collector + Grafana + Tempo (traces)
+  # + Prometheus (metrics) + Loki (logs). No account or login needed.
+  lgtm:
+    image: grafana/otel-lgtm:0.8.1
+    container_name: ax13-lgtm
+    ports:
+      - "3000:3000"   # Grafana UI
+      - "4317:4317"   # OTLP gRPC (app sends traces/metrics/logs here)
+      - "4318:4318"   # OTLP HTTP
+    volumes:
+      - lgtm:/data
+
+volumes:
+  pgdata:
+  qdrant:
+  lgtm:
