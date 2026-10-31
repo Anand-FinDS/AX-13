@@ -79,7 +79,6 @@ In the app, the **Overview** tab has a click-by-click demo guide.
 ## Files
 
 - `AGENT_FLOW.md`: how the agent works, on one page
-- `CLAUDE.md`: full project context, decisions and scope
 - `DATA_PREPARATION.md`: dataset spec
 - `docs/`: the four illustrative policy documents the agent cites
 

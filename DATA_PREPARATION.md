@@ -1,6 +1,6 @@
 # AX-13 — Data Preparation Spec (Phase 0)
 
-> Read CLAUDE.md first for project context. This file specifies the synthetic dataset AX-13 runs on: what to generate, how, and how to check it. Build exactly this; ask before changing structure.
+> This file specifies the synthetic dataset AX-13 runs on: what to generate, how, and how to check it. Build exactly this; ask before changing structure.
 
 ---
 
@@ -341,7 +341,7 @@ Write in plain English, in Anand's voice, with **numbered sections** so RAG cita
 - §6 Fee communication: accurate, based on the proposed framework, with the merchant's own numbers.
 
 **`autonomy_policy.md`**
-- §1 Three tiers (agent alone / agent prepares, human approves / human only) with the action lists from CLAUDE.md §5.4.
+- §1 Three tiers (agent alone / agent prepares, human approves / human only) with the action lists from the autonomy policy.
 - §2 Confidence thresholds (e.g. score reasoning confidence, ASR confidence).
 - §3 Waiver caps per zone and per merchant.
 - §4 Escalation triggers (angry sentiment, high-value tier, third repeat issue, disputes).
