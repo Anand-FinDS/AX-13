@@ -128,10 +128,15 @@ def check_rules(kind: str, draft: dict, facts: dict) -> list[dict]:
 
 def judge(kind: str, draft: dict, facts: dict) -> dict:
     """LLM judge for softer problems (Compliance rules §7.2). Returns {verdict, rule, reason}."""
-    user = json.dumps({"draft_kind": kind, "english": draft.get("english"), "message": draft.get("text"),
-                       "facts": facts}, ensure_ascii=False, indent=1)
+    body = {"draft_kind": kind, "english": draft.get("english"), "message": draft.get("text"), "facts": facts}
+    if draft.get("text") == draft.get("english"):
+        # Template merchants get the English text as sent; there is no translation to compare.
+        body["language_note"] = "This message is sent in English exactly as written; there is no separate " \
+                                "local-language version to compare."
+    user = json.dumps(body, ensure_ascii=False, indent=1)
+    roles = POLICY.get("judge_roles", {})
     out = complete([{"role": "system", "content": JUDGE_PROMPT}, {"role": "user", "content": user}],
-                   role="fallback", json_mode=True)
+                   role=roles.get(kind, roles.get("default", "fallback")), json_mode=True)
     verdict = str(out.get("verdict", "unsure")).lower()
     return {"verdict": verdict if verdict in ("pass", "block", "unsure") else "unsure",
             "rule": out.get("rule"), "reason": out.get("reason")}

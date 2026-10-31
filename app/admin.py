@@ -198,3 +198,47 @@ def set_localized_draft(approval_id: str, action_id: str, draft: dict) -> None:
             "coalesce(payload_json->'localized', '{}'::jsonb) || jsonb_build_object(%s::text, %s::jsonb)) "
             "WHERE action_id = (SELECT action_id FROM approvals WHERE approval_id = %s)",
             (action_id, json.dumps(draft, ensure_ascii=False), approval_id))
+
+
+# ---------------------------------------------------------------- saved days (snapshots)
+# Everything the agent and the humans change, plus the clock and the LangGraph threads, so a saved
+# day can be loaded instantly and explored (and continued with the clock) without re-running.
+
+SNAPSHOT_TABLES = [("ax13", t) for t in ("sim_state", "tickets", "offers_history", "actions", "approvals", "visits",
+                                         "crm_notes")] + \
+                  [("ax13_graph", t) for t in ("checkpoints", "checkpoint_blobs", "checkpoint_writes")]
+
+
+def _snap_dir(mode: str, label: str):
+    return get_settings().data_out_dir / "snapshots" / mode / label.replace("+", "plus")
+
+
+def save_snapshot(mode: str, label: str, meta: dict) -> None:
+    d = _snap_dir(mode, label)
+    d.mkdir(parents=True, exist_ok=True)
+    with _connect() as conn, conn.cursor() as cur:
+        for schema, table in SNAPSHOT_TABLES:
+            with (d / f"{schema}.{table}.copy").open("wb") as f, cur.copy(f"COPY {schema}.{table} TO STDOUT") as cp:
+                for chunk in cp:
+                    f.write(chunk)
+    (d / "meta.json").write_text(json.dumps({**meta, "mode": mode, "label": label}, default=str, indent=1),
+                                 encoding="utf-8")
+
+
+def load_snapshot(mode: str, label: str) -> dict:
+    d = _snap_dir(mode, label)
+    if not (d / "meta.json").exists():
+        raise ValueError(f"No saved day {mode}/{label}")
+    with _connect() as conn, conn.cursor() as cur:
+        cur.execute("TRUNCATE " + ", ".join(f"{s}.{t}" for s, t in SNAPSHOT_TABLES))
+        for schema, table in SNAPSHOT_TABLES:
+            with cur.copy(f"COPY {schema}.{table} FROM STDIN") as cp:
+                cp.write((d / f"{schema}.{table}.copy").read_bytes())
+    return get_sim_state()
+
+
+def list_snapshots() -> list[dict]:
+    root = get_settings().data_out_dir / "snapshots"
+    order = {"D0": 0, "D+1": 1, "G0": 2, "G0+5": 3}
+    out = [json.loads(p.read_text(encoding="utf-8")) for p in root.glob("*/*/meta.json")] if root.exists() else []
+    return sorted(out, key=lambda m: (m["mode"] != "live", order.get(m["label"], 9)))

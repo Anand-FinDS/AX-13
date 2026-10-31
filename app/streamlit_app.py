@@ -193,13 +193,44 @@ with st.sidebar:
         get_estimate("full", None)
         st.rerun()
     if mode != "live":
-        st.button(label, width="stretch", disabled=True, help="Only in Live mode")
-        st.caption("The full run works only in Live mode.")
+        if st.button(label, width="stretch", help="Replay: free; uncached steps run as templates"):
+            run_agent()
+            st.rerun()
     elif full:
         ok = st.checkbox(f"I confirm: up to ~{full['llm_calls_needed']} API calls")
         if st.button(label, width="stretch", disabled=not ok):
             run_agent()
             st.rerun()
+
+    st.subheader("End-to-end demo")
+    st.caption("One click: Reset → all 200 merchants on D0, D+1, G0 and G0+5. Meena's loan is approved by a "
+               "scripted RM; all other approvals stay in the queue. Each day is saved below. Takes ~10 min.")
+    ok_e2e = mode != "live" or st.checkbox("I confirm: Live end-to-end run (a few API calls per day)")
+    if st.button(f"Run full demo D0 → G0+5 ({'Live' if mode == 'live' else 'Replay, free'})", width="stretch",
+                 disabled=not ok_e2e):
+        from app.demo_script import run_full_demo
+        with st.status("Running the end-to-end demo…", expanded=True) as box:
+            rows = run_full_demo(mode, progress=box.write)
+            box.update(label=f"Done: {len(rows)} days saved ({mode})", state="complete")
+        st.session_state.runs += 1
+        st.rerun()
+
+    st.subheader("Saved days")
+    snaps = admin.list_snapshots()
+    if not snaps:
+        st.caption("None yet. Run the end-to-end demo to save D0, D+1, G0 and G0+5.")
+    else:
+        pick = st.selectbox("Load a saved day", range(len(snaps)), format_func=lambda i: (
+            f"{snaps[i]['mode'].title()} · {snaps[i]['label']} · RM {snaps[i]['rm_queue']} · human {snaps[i]['human_queue']}"))
+        s = snaps[pick]
+        st.caption(f"Saved {s['saved_at'][:16].replace('T', ' ')} · LLM {s['llm']['hits']} cached, "
+                   f"{s['llm']['api_calls']} API calls that day")
+        if st.button("Load this day", width="stretch"):
+            admin.load_snapshot(s["mode"], s["label"])
+            st.session_state.pop("last_run", None)
+            st.session_state.runs += 1
+            st.rerun()
+        st.caption("After loading, look around the tabs, or move the clock and press Run to continue from there.")
 
     st.subheader("Clock")
     c1, c2 = st.columns(2)
@@ -271,6 +302,10 @@ with tabs[0]:
 | 4 | **Jump to G0** → **Run** | Fee go-live. Ravi gets his own fee estimate (₹537/month) in Hindi. Lakshmi gets one *not affected* message, nothing else. |
 | 5 | **Advance 5 days** → **Run** | Ravi's UPI dropped after go-live: the Save case opens and a field visit is planned (see **Field plan**, 19 Nov). |
 | 6 | **Merchant timeline** | Each merchant's UPI chart with the days the agent acted, and every action with its evidence, section and gate result. |
+
+**All 200 merchants:** *Run full demo D0 → G0+5* does the whole sequence for everyone in one click and saves each day.
+Or pick a day under **Saved days** (e.g. *Live · G0+5*) and press *Load this day* to see the full RM queue, human
+queue, field plan and actions log at once; then move the clock and press Run to continue from there.
 """)
     counts = pd.DataFrame(admin.day_counts())
     todays = counts[counts["day"] == today] if not counts.empty else counts

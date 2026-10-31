@@ -24,3 +24,9 @@ actions:
 # message. Everyone else gets the code-filled English template and a rules-only gate; loan drafts always
 # get the judge. RM-queue items can be drafted by the LLM on demand from the app.
 llm_merchants: [M_DEMO_RAVI, M_DEMO_MEENA, M_DEMO_SMALL]
+
+# Which model judges which draft kind (role names map to AX13_MODEL_* in .env). Loans use the reasoning
+# model: in testing the fallback model read a stated, true validity date as pressure (Compliance rules §3.1).
+judge_roles:
+  loan_offer: reason
+  default: fallback
