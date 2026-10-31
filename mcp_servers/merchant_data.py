@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 from statistics import median
+from typing import Literal
 
 from mcp.server.fastmcp import FastMCP
 
@@ -101,10 +102,11 @@ def get_fee_summary(merchant_id: str) -> dict:
 
 @mcp.tool()
 def get_peer_change(merchant_id: str, base_start: str, base_end: str, comp_start: str, comp_end: str,
-                    exclude_fee_affected: bool = False) -> dict:
+                    exclude_fee_affected: bool = False,
+                    scope: Literal["category_zone", "zone"] = "category_zone") -> dict:
     """Seasonality check (Retention playbook §2.3): change in mean daily UPI count between two periods
-    for this merchant vs same-category, same-zone peers. Returns aggregates only. Set
-    exclude_fee_affected=True from fee go-live onward."""
+    for this merchant vs same-category, same-zone peers (or all merchants in the zone with
+    scope='zone'). Returns aggregates only. Set exclude_fee_affected=True from fee go-live onward."""
     m = require_merchant(merchant_id)
     b0, b1, c0, c1 = (date.fromisoformat(x) for x in (base_start, base_end, comp_start, comp_end))
     if max(b1, c1) > sim_date():
@@ -113,12 +115,13 @@ def get_peer_change(merchant_id: str, base_start: str, base_end: str, comp_start
         "WITH last_month AS (SELECT DISTINCT ON (merchant_id) merchant_id, is_fee_affected FROM v_merchant_fee_monthly "
         "  ORDER BY merchant_id, month DESC), "
         "p AS (SELECT merchant_id FROM merchants LEFT JOIN last_month USING (merchant_id) "
-        "  WHERE category = %(cat)s AND zone_id = %(zone)s AND (merchant_id = %(mid)s OR NOT %(ex)s "
+        "  WHERE (category = %(cat)s OR %(all)s) AND zone_id = %(zone)s AND (merchant_id = %(mid)s OR NOT %(ex)s "
         "  OR NOT coalesce(is_fee_affected, false))) "
         "SELECT t.merchant_id, avg(upi_count) FILTER (WHERE date BETWEEN %(b0)s AND %(b1)s) AS base, "
         "       avg(upi_count) FILTER (WHERE date BETWEEN %(c0)s AND %(c1)s) AS comp "
         "FROM v_txn_daily t JOIN p USING (merchant_id) GROUP BY t.merchant_id",
-        {"cat": m["category"], "zone": m["zone_id"], "mid": merchant_id, "ex": exclude_fee_affected,
+        {"cat": m["category"], "all": scope == "zone", "zone": m["zone_id"], "mid": merchant_id,
+         "ex": exclude_fee_affected,
          "b0": b0, "b1": b1, "c0": c0, "c1": c1})
     change = {r["merchant_id"]: r["comp"] / r["base"] - 1 for r in rows if r["base"] and r["comp"] is not None}
     own = change.pop(merchant_id, None)
@@ -128,7 +131,8 @@ def get_peer_change(merchant_id: str, base_start: str, base_end: str, comp_start
     q25 = peers[len(peers) // 4]
     return {"merchant_change": round(own, 4), "peer_n": len(peers), "peer_median": round(median(peers), 4),
             "peer_bottom_quarter_cutoff": round(q25, 4), "below_bottom_quarter": own < q25,
-            "peer_group": f"{m['category']} in {m['zone_id']}" + (", not fee-affected" if exclude_fee_affected else "")}
+            "peer_group": (f"{m['category']} in {m['zone_id']}" if scope == "category_zone" else f"all categories in {m['zone_id']}")
+            + (", not fee-affected" if exclude_fee_affected else "")}
 
 
 @mcp.tool()

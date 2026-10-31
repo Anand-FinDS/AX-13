@@ -1,0 +1,62 @@
+# Sentinel 2.0 scoring weights and feature parameters. Illustrative prototype settings, tuned
+# against the synthetic data; LearnLoop will adjust the weights from outcomes later.
+# Each signal is scaled to 0..1 in code and multiplied by its weight; the raw sum is mapped to a
+# 0-100 display score by a saturating curve (scale below), so strong cases land 80-95, never 100.
+
+churn:
+  volume_drop: 40            # full weight at volume_drop_full
+  excess_vs_peers: 30        # only when below the peers' bottom quarter (Retention playbook §2.3)
+  device_fault: 45           # Soundbox/POS hardware fault or offline >= device_offline_days in last 7 days
+  network_peak_errors: 50    # peak errors >= network_ratio x off-peak, device hardware OK
+  unnotified_charge: 40      # unnotified deduction in the last 30 days
+  fee_drop_since_go_live: 40 # drop since fee go-live, below non-affected peers' bottom quarter
+  open_complaint: 15         # any open ticket other than 'other'
+  angry_sentiment: 10
+
+growth:
+  festive_growth: 40         # last 14 days vs pre-festive baseline, ahead of peers
+  soundbox_ready: 30         # no Soundbox, >= ready_daily_upi a day for 4 weeks (Autonomy policy §6 #3)
+  loan_path: 20              # Soundbox + steady 90 days (Autonomy policy §6 #4)
+  low_active: 45             # under ready_daily_upi a day: activation nudge
+  threshold_holdback: 60     # month-end holdback in >= holdback_min_months recent months
+
+scale:                       # display = 100 x (1 - e^(-raw / k))
+  churn: 57                  # raw 40 -> 50, 117 (Ravi at D0) -> 87, 170 -> 95
+  growth: 36                 # raw 40 -> 67, 60 (Meena) -> 81, 90 -> 92
+
+thresholds:                  # in display units
+  save: 50                   # churn at or above -> Save line (= raw 40)
+  grow: 67                   # growth at or above -> Grow line, only if not Save (= raw 40)
+
+features:
+  baseline_days: 28          # own baseline before the last 7 days
+  long_recent_days: 14       # long view: last 14 days ...
+  long_base_start: 63        # ... vs days 63..36 back (before the festive ramp at D0;
+  long_base_end: 36          #     catches finished declines and festive growth)
+  volume_drop_full: 0.40     # a 40% drop scores the full volume_drop weight
+  excess_full: 0.25          # 25 points below the peer median scores the full excess weight
+  min_excess_drop: 0.15      # must be at least 15 points below the peer median to count
+  device_current_days: 2     # device must still be down in the last 2 days to act
+  network_ratio: 5
+  network_min_peak_errors: 5
+  fee_pre_window_days: 3     # just before go-live (after the Diwali peak)
+  fee_post_window_days: 3    # latest days
+  fee_min_post_days: 3       # days after go-live before the fee comparison is used
+  fee_min_drop: 0.20         # at least 20% down since go-live
+  fee_min_excess: 0.10       # and 10 points below non-affected peers (bottom-quarter test guards noise)
+  fee_normal_start: 58       # pre-festive normal: days 58..31 before go-live
+  fee_normal_end: 31
+  fee_normal_min_excess: 0.10  # latest level at least 10 points below peers vs that normal
+  closed_zero_days: 14
+  min_daily_for_change: 5    # below this, % changes are noise: no volume-based churn signals
+  ready_daily_upi: 10        # Autonomy policy §6 #3 (illus.)
+  ready_weeks: 4
+  steady_days: 90            # Autonomy policy §6 #4 (illus.)
+  steady_min_active_days: 85
+  festive_min_growth: 0.10
+  festive_min_excess: 0.10   # ahead of the peer median by at least 10 points
+  festive_excess_full: 0.20
+  holdback_mtd: 85000        # month-to-date UPI after which a threshold holder slows down
+  holdback_max_month: 100000
+  holdback_max_ratio: 0.70   # post-crossing daily UPI at most 70% of pre-crossing
+  holdback_min_months: 2     # plus every completed month inside [holdback_mtd, holdback_max_month)
