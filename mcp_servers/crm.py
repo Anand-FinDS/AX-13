@@ -74,6 +74,36 @@ def request_approval(merchant_id: str, action_type: Literal["loan_offer", "waive
 
 
 @mcp.tool()
+def escalate_to_human(merchant_id: str, reasons: list[str], case_summary: str, evidence: list[str], playbook_ref: str,
+                      line: Line = "save") -> dict:
+    """Hand a case to a human (Autonomy policy §4): angry or disputed cases, low-confidence decisions.
+    The agent takes no action on the merchant; the case is queued with its evidence."""
+    check_citation(evidence, playbook_ref, line)
+    require_merchant(merchant_id)
+    if not reasons:
+        raise ToolError("Rejected: give at least one escalation reason (Autonomy policy §4).")
+    with pool().connection() as conn:
+        action_id = write_action(conn, merchant_id, line, "escalation", {"reasons": reasons, "case_summary": case_summary},
+                                 evidence, playbook_ref, "human_only", "queued")
+    return {"action_id": action_id, "status": "queued"}
+
+
+@mcp.tool()
+def log_gate_result(merchant_id: str, draft_kind: Literal["fee_message", "cost_comparison", "loan_offer"],
+                    draft: dict, result: Literal["pass", "block", "unsure"], rule_hits: list[dict], judge: dict | None,
+                    evidence: list[str], playbook_ref: str, line: Line = "save") -> dict:
+    """Log a compliance gate decision on a draft (Compliance rules §7.4): the draft, the result, the
+    rules hit (each with its Compliance section) and the judge's verdict and reason."""
+    check_citation(evidence, playbook_ref, line)
+    require_merchant(merchant_id)
+    with pool().connection() as conn:
+        action_id = write_action(conn, merchant_id, line, "compliance_check",
+                                 {"draft_kind": draft_kind, "draft": draft, "rule_hits": rule_hits, "judge": judge},
+                                 evidence, playbook_ref, "agent_alone", result)
+    return {"action_id": action_id, "result": result}
+
+
+@mcp.tool()
 def get_approval(approval_id: str) -> dict:
     """Status of an approval request: pending, approved or rejected, with who decided."""
     a = one("SELECT ap.*, ac.merchant_id, ac.action_type, ac.payload_json AS draft, ac.status AS action_status "

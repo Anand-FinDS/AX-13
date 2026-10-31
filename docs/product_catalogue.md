@@ -24,10 +24,10 @@ Each step builds the next. The Soundbox makes UPI easy to accept. Regular UPI bu
 | Next step | Ready when |
 |---|---|
 | Soundbox | At least 10 UPI payments a day for 4 weeks (illus.), no Soundbox yet |
-| Loan path | At least 90 days of steady volume history (illus.), Soundbox in place, no open Save case |
+| Loan path | At least 90 days of steady volume history (illus.): UPI on almost every day, and the last 3 months within 15% of each other at ₹25,000 a month or more (illus.). Soundbox in place, no open Save case |
 | POS | High-ticket category (pharmacy, restaurant, electronics, salon) with customers asking to pay by card |
 
-**1.3 Never skip a step.** No loan pitch to a merchant doing 2 UPI payments a day. A thin history is a reason to grow digital volume first, not to pitch credit.
+**1.3 Never skip a step.** No loan pitch on a thin history: a few small payments a day, a few weeks on record, or sales that swing widely from month to month. Steady history is about recorded sales over time, not the number of payments. A stall taking two ₹50 payments a day has no history a lender can assess; a tailor taking two or three ₹1,500 payments a day, every day for months, does. A thin history is a reason to grow digital volume first, not to pitch credit.
 
 ---
 

@@ -72,7 +72,7 @@ Prototype settings, not validated policy. Tune them here. Other documents refer 
 | 1 | Decision confidence below which a human decides | 0.6 | §2.1 |
 | 2 | ASR segment confidence below which the field agent confirms | 0.7 | §2.2 |
 | 3 | Soundbox readiness: UPI payments a day, sustained | 10 a day for 4 weeks | Product catalogue §1.2 |
-| 4 | Loan path readiness: steady volume history | 90 days | Product catalogue §1.2 |
+| 4 | Loan path readiness: steady volume history | 90 days, UPI on 85 of them; last 3 months within 15% of each other, at least ₹25,000 a month | Product catalogue §1.2 |
 | 5 | Peak-hour network errors persisting after guidance, before escalation to network ops | 7 days | Retention playbook §4.4 |
 | 6 | Repeat issues before escalation | 3rd issue within 30 days | §4 |
 | 7 | Starting estimate of the increase in the chance of staying because of a waiver, used until LearnLoop has outcomes | +10 percentage points | Retention playbook §7.1 |

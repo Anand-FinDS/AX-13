@@ -107,7 +107,7 @@ def _client():
     from qdrant_client import QdrantClient
     s = get_settings()
     return QdrantClient(url=s.qdrant_url, api_key=s.qdrant_api_key.get_secret_value() if s.qdrant_api_key else None,
-                        timeout=5)
+                        timeout=5, check_compatibility=False)
 
 
 def build_index() -> int:

@@ -1,0 +1,19 @@
+# Mock partner lender for the AX-13 prototype. Illustrative: a fictional lender and made-up terms.
+# The lender, not AX-13, decides eligibility, amount, tenure and rate (Product catalogue §4).
+# get_loan_quote (mcp_servers/offers_messaging.py) returns the lender's written in-principle offer.
+lender_name: "Kaveri Finance Ltd (illustrative lender)"
+kfs_base_url: "https://kfs.example.com/"      # placeholder Key Fact Statement link
+assessment:
+  min_completed_months: 3        # lender looks at the last 3 completed months of recorded UPI
+  requires_soundbox: true
+  amount_months_of_upi: 1.0      # in-principle amount = 1x average monthly UPI ...
+  amount_round_down_to: 5000     # ... rounded down to the nearest ₹5,000
+  amount_max: 200000
+  amount_min: 25000
+terms:
+  tenure_months: 12
+  apr_pct: 24.0
+  processing_fee_pct: 2.0        # of the loan amount, plus GST
+  prepayment: "No prepayment charge after 6 EMIs; 2% of principal prepaid before that"
+  late_payment: "2% a month on the overdue EMI"
+  valid_days: 15

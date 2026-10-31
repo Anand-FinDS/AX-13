@@ -7,10 +7,15 @@ per-merchant cap or beyond the zone budget need one too (Autonomy policy §3).
 """
 from __future__ import annotations
 
+import math
+from datetime import timedelta
+from functools import lru_cache
 from typing import Literal
 
+import yaml
 from mcp.server.fastmcp import FastMCP
 
+from common.settings import get_settings
 from mcp_servers.db import (
     ToolError,
     approved_action,
@@ -31,12 +36,13 @@ Line = Literal["save", "grow", "none"]
 
 @mcp.tool()
 def send_message(merchant_id: str, channel: Literal["whatsapp", "sms", "app"], text: str, evidence: list[str],
-                 playbook_ref: str, line: Line = "save") -> dict:
-    """Send the merchant a message (mock: logged and copied to the CRM, nothing is sent)."""
+                 playbook_ref: str, line: Line = "save", english: str | None = None) -> dict:
+    """Send the merchant a message (mock: logged and copied to the CRM, nothing is sent). `english` is the
+    English version kept for the audit log when the message is in another language."""
     check_citation(evidence, playbook_ref, line)
     require_merchant(merchant_id)
     with pool().connection() as conn:
-        action_id = write_action(conn, merchant_id, line, "message", {"channel": channel, "text": text},
+        action_id = write_action(conn, merchant_id, line, "message", {"channel": channel, "text": text, "english": english},
                                  evidence, playbook_ref, "agent_alone", "sent")
         conn.execute("INSERT INTO crm_notes (note_id, merchant_id, ts, source, text) VALUES (%s, %s, %s, 'agent', %s)",
                      (new_id("N"), merchant_id, sim_ts(), f"[{channel}] {text}"))
@@ -46,7 +52,7 @@ def send_message(merchant_id: str, channel: Literal["whatsapp", "sms", "app"], t
 @mcp.tool()
 def make_offer(merchant_id: str, product: Literal["soundbox", "pos", "loan", "insurance", "plan_change"],
                channel: Literal["app", "whatsapp", "field"], text: str, evidence: list[str], playbook_ref: str,
-               line: Line = "grow", approval_id: str | None = None) -> dict:
+               line: Line = "grow", approval_id: str | None = None, english: str | None = None) -> dict:
     """Make a catalogue offer. Loan offers require an approved approval_id (Compliance rules §5)."""
     check_citation(evidence, playbook_ref, line)
     require_merchant(merchant_id)
@@ -56,7 +62,7 @@ def make_offer(merchant_id: str, product: Literal["soundbox", "pos", "loan", "in
         conn.execute("INSERT INTO offers_history (offer_id, merchant_id, date, product, channel, response) "
                      "VALUES (%s, %s, %s, %s, %s, 'pending')", (offer_id, merchant_id, sim_date(), product, channel))
         action_id = write_action(conn, merchant_id, line, "offer",
-                                 {"offer_id": offer_id, "product": product, "channel": channel, "text": text,
+                                 {"offer_id": offer_id, "product": product, "channel": channel, "text": text, "english": english,
                                   "approval_id": approval_id}, evidence, playbook_ref,
                                  "human_approves" if approval else "agent_alone", "sent")
         if approval:
@@ -110,6 +116,42 @@ def grant_waiver(merchant_id: str, amount: float, reason: str, evidence: list[st
                          "WHERE approval_id = %s)", (approval_id,))
     return {"action_id": action_id, "amount": amount, "tier": "agent_alone" if within else "human_approves",
             "merchant_spent_this_month": merchant_spent + amount}
+
+
+@lru_cache(maxsize=1)
+def _lender() -> dict:
+    return yaml.safe_load((get_settings().data_config_dir / "lender.yaml").read_text(encoding="utf-8"))
+
+
+@mcp.tool()
+def get_loan_quote(merchant_id: str) -> dict:
+    """The partner lender's written in-principle offer for a merchant (mock lender, illustrative terms):
+    lender, amount, tenure, APR, charges and Key Fact Statement link, or the lender's reason for no offer.
+    The lender decides; AX-13 only relays the terms (Product catalogue §4)."""
+    m = require_merchant(merchant_id)
+    cfg = _lender()
+    a, t = cfg["assessment"], cfg["terms"]
+    months = query("SELECT month, monthly_upi_value FROM v_merchant_fee_monthly WHERE merchant_id = %s "
+                   "ORDER BY month DESC LIMIT %s", (merchant_id, a["min_completed_months"]))
+    if a["requires_soundbox"] and not m["has_soundbox"]:
+        return {"merchant_id": merchant_id, "lender": cfg["lender_name"], "offer": False, "reason": "No Soundbox in place"}
+    if len(months) < a["min_completed_months"]:
+        return {"merchant_id": merchant_id, "lender": cfg["lender_name"], "offer": False,
+                "reason": f"Fewer than {a['min_completed_months']} completed months of recorded UPI"}
+    avg = sum(r["monthly_upi_value"] for r in months) / len(months)
+    step = a["amount_round_down_to"]
+    amount = min(a["amount_max"], math.floor(avg * a["amount_months_of_upi"] / step) * step)
+    if amount < a["amount_min"]:
+        return {"merchant_id": merchant_id, "lender": cfg["lender_name"], "offer": False,
+                "reason": f"Recorded UPI too low for the minimum loan of ₹{a['amount_min']:,}"}
+    quote_id = f"Q-{merchant_id}-{sim_date():%Y%m%d}"
+    return {"merchant_id": merchant_id, "lender": cfg["lender_name"], "offer": True, "quote_id": quote_id,
+            "amount": amount, "tenure_months": t["tenure_months"], "apr_pct": t["apr_pct"],
+            "processing_fee": f"{t['processing_fee_pct']:g}% of the loan amount plus GST",
+            "prepayment": t["prepayment"], "late_payment": t["late_payment"],
+            "kfs_link": cfg["kfs_base_url"] + quote_id,
+            "valid_until": (sim_date() + timedelta(days=t["valid_days"])).isoformat(),
+            "basis": f"average recorded UPI of the last {len(months)} completed months: ₹{avg:,.0f}"}
 
 
 @mcp.tool()

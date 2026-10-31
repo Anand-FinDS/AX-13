@@ -266,4 +266,4 @@ Every folder with Python code is a package (`__init__.py`), so modules run as `p
 - Demo laptop installs from a frozen `requirements.lock`.
 - Open item: confirm in AgntID docs whether it needs an account/key and can gate MCP tool calls.
 
-**Current phase: 1 — Tools (mock MCP servers).** Phase 0 complete; see DATA_PREPARATION.md.
+**Current phase: 5 — UI (Streamlit).** Phases 0–3 complete: data, MCP tools, scoring + retrieval, LangGraph loop with escalation and compliance gates (`python -m agent.run_day`). Phase 4 (VoiceCore) not started.

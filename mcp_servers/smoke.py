@@ -146,6 +146,16 @@ async def run_steps(tools: dict, per_server: dict) -> None:
                              ("32", "get_settlements", {"merchant_id": "M_DEMO_RAVI", "days": 3}),
                              ("33", "get_deductions", {"merchant_id": "M_DEMO_RAVI", "days": 3})):
         await call(tools, step, name, lambda r: r, lambda r: f"{len(r)} rows" if isinstance(r, list) else "ok", **args)
+    await call(tools, "33a", "get_loan_quote", lambda r: r["offer"] and r["kfs_link"],
+               lambda r: f"{r['lender']}: {r['amount']:,} for {r['tenure_months']} months at {r['apr_pct']}% APR",
+               merchant_id="M_DEMO_MEENA")
+    await call(tools, "33b", "log_gate_result", lambda r: r["result"] == "block", lambda r: r["action_id"],
+               merchant_id="M_DEMO_MEENA", draft_kind="loan_offer", draft={"english": "Cross ₹1 lakh and get a loan"},
+               result="block", rule_hits=[{"rule": "Compliance rules §3.2", "check": "credit linked to threshold"}],
+               judge=None, evidence=["eval fixture"], playbook_ref="Compliance rules §3.2", line="grow")
+    await call(tools, "33c", "escalate_to_human", lambda r: r["status"] == "queued", lambda r: r["action_id"],
+               merchant_id="M_DEMO_SMALL", reasons=["Angry sentiment in a call (Autonomy policy §4)"],
+               case_summary="smoke", evidence=["smoke"], playbook_ref="Autonomy policy §4", line="none")
     await call(tools, "34", "get_txn_daily", lambda r: r[-1]["date"] == "2026-11-02",
                lambda r: f"after advance_day(2): last day {r[-1]['date']}", merchant_id="M_DEMO_RAVI", days=3)
     human("35", "reset", admin.reset)

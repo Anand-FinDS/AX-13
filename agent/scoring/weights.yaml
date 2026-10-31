@@ -53,6 +53,9 @@ features:
   ready_weeks: 4
   steady_days: 90            # Autonomy policy §6 #4 (illus.)
   steady_min_active_days: 85
+  steady_months: 3           # last 3 completed months of UPI value ...
+  steady_max_month_dev: 0.15 # ... each within 15% of their mean (illus.)
+  steady_min_monthly_upi: 25000  # and at least ₹25,000 a month on average (illus.)
   festive_min_growth: 0.10
   festive_min_excess: 0.10   # ahead of the peer median by at least 10 points
   festive_excess_full: 0.20

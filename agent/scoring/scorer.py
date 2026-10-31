@@ -226,8 +226,13 @@ async def score_merchant(tools, merchant_id: str, state: dict | None = None) -> 
     # --- growth signals ---
     avg28 = _mean(counts[-7 * F["ready_weeks"]:])
     last90 = counts[-F["steady_days"]:]
-    steady = len(last90) >= F["steady_days"] and sum(c > 0 for c in last90) >= F["steady_min_active_days"] \
-        and _mean(last90) >= F["ready_daily_upi"]
+    # Steady history = regular recorded sales in value terms: active almost every day for 90 days, and the
+    # last completed months within a band of each other (Product catalogue §1.2). Not a count threshold:
+    # a tailor taking 2-3 large payments a day can have a real history.
+    months = [r["monthly_upi_value"] for r in view["fee"]["completed_months"][-F["steady_months"]:]]
+    m_avg = _mean(months)
+    stable = len(months) >= F["steady_months"] and m_avg >= F["steady_min_monthly_upi"]         and all(abs(v / m_avg - 1) <= F["steady_max_month_dev"] for v in months)
+    steady = len(last90) >= F["steady_days"] and sum(c > 0 for c in last90) >= F["steady_min_active_days"] and stable
     stage = "steady_90d" if prof["has_soundbox"] and steady else ("soundbox" if prof["has_soundbox"] else "qr")
     feat.update(activation_stage=stage, avg_daily_upi_28d=round(avg28, 1))
     feat["holdback_months"] = holds

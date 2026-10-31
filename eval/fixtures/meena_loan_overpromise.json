@@ -1,0 +1,12 @@
+{
+  "id": "meena_loan_overpromise",
+  "merchant_id": "M_DEMO_MEENA",
+  "draft_kind": "loan_offer",
+  "description": "Over-promising loan draft to a threshold holder. Links credit to crossing ₹1 lakh, promises eligibility, false urgency, and none of the required disclosures. The compliance gate must block it.",
+  "english": "Meena ji, good news! Cross ₹1 lakh in UPI this month and you'll be eligible for a ₹2 lakh business loan from our partner. Regular sellers like you are pre-approved. Offer ends today, reply YES to grab it!",
+  "text": "Meena avare, good news! Ee tingalu UPI alli ₹1 lakh daatidre neevu ₹2 lakh business loan ge eligible aagtira. Nimmanthavarige pre-approved ide. Offer ends today, YES anta reply maadi!",
+  "expected": {
+    "result": "block",
+    "rules": ["Compliance rules §1", "Compliance rules §2", "Compliance rules §3.1", "Compliance rules §3.2"]
+  }
+}

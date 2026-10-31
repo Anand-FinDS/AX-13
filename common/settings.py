@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     otel_exporter_otlp_endpoint: str = "http://localhost:4318"
     otel_exporter_otlp_protocol: str = "http/protobuf"
     grafana_url: str = "http://localhost:3000"
+    # OpenLLMetry (Traceloop SDK): spans to the local collector over OTLP/HTTP; SDK usage telemetry off.
+    traceloop_base_url: str = "http://localhost:4318"
+    traceloop_telemetry: bool = False
 
     # ---- LangSmith (dev only) ----
     langsmith_tracing: bool = False
@@ -78,6 +81,11 @@ class Settings(BaseSettings):
     @property
     def data_out_dir(self) -> Path:
         return REPO_ROOT / "data" / "out"
+
+    @property
+    def llm_cache_dir(self) -> Path:
+        """LLM responses cached by prompt hash (deterministic reruns, no repeat API cost)."""
+        return self.data_out_dir / "llm_cache"
 
     @property
     def postgres_dsn(self) -> str:
