@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -37,6 +38,9 @@ class Settings(BaseSettings):
     ax13_model_extract: str | None = None
     ax13_model_fallback: str | None = None
     ax13_embed_model: str = "openai/text-embedding-3-small"
+    # replay: every LLM/embedding call is served from the cache, a miss makes no API call (default).
+    # live: a miss calls the API. The Streamlit app can switch to live after a confirm click.
+    ax13_llm_mode: Literal["replay", "live"] = "replay"
 
     # ---- Postgres ----
     postgres_host: str = "localhost"

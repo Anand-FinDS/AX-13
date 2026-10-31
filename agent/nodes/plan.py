@@ -62,10 +62,15 @@ def fill(template: str, **values: str) -> str:
     return out
 
 
-async def _retrieve(case: dict, query: str) -> dict:
+async def _retrieve(case: dict, query: str, use_llm: bool) -> dict:
+    """Dense retrieval for merchants the LLM drafts for; the others take the cause's section directly
+    (no embedding call: their message is a template anyway)."""
+    if not use_llm and case["cause"] in retrieval.EXPECTED_SECTION:
+        return {**retrieval.section(retrieval.EXPECTED_SECTION[case["cause"]]), "safety_net": False, "source": "cause map"}
     hits = await asyncio.to_thread(retrieval.retrieve, query, None, 3, case["cause"])
     return {"ref": hits[0]["ref"], "title": hits[0]["title"], "text": hits[0]["text"],
-            "safety_net": bool(hits[0].get("safety_net"))}
+            "safety_net": bool(hits[0].get("safety_net")),
+            "source": "cause map (query embedding not cached)" if hits[0].get("not_cached") else "retrieval"}
 
 
 def _action(case: dict, kind: str, tool: str | None, args: dict, evidence: list[str], ref: str, **extra) -> dict:
@@ -74,10 +79,17 @@ def _action(case: dict, kind: str, tool: str | None, args: dict, evidence: list[
 
 
 def _message(case, kind, purpose, facts, evidence, ref, section, gate=None, template=None, tool="send_message",
-             max_words=None, **extra) -> dict:
+             max_words=None, english_template=None, **extra) -> dict:
+    """A message action. `template` is a §6.2 fee template (the LLM only translates it); `english_template`
+    is the code-filled English used for merchants the LLM does not draft for, and as the fallback when a
+    draft is not cached."""
     return _action(case, kind, tool, {"channel": ACT["channel"]}, evidence, ref, gate=gate,
                    draft_spec={"purpose": purpose, "facts": facts, "section": section, "template": template,
+                               "english_template": english_template or template,
                                "max_words": max_words or ACT["message_max_words"]}, **extra)
+
+
+SIGN = " Merchant support team"
 
 
 async def plan_case(tools, st: dict, case: dict) -> tuple[dict, list[dict]]:
@@ -92,13 +104,13 @@ async def plan_case(tools, st: dict, case: dict) -> tuple[dict, list[dict]]:
     lm = (view["fee"].get("last_full_month") or {})
     month = date.fromisoformat(lm["month"]).strftime("%B %Y") if lm else None
 
-    # ---- fee notice for merchants the fee does not touch (at go-live, once) ----
+    # ---- fee notice at go-live, once: the §6.2 estimate if affected, else the not-affected variant ----
     if case["key"] == "notice:fee":
-        sec = {**retrieval.section("Retention playbook §6.2"), "safety_net": False}
+        sec = {**retrieval.section("Retention playbook §6.2"), "safety_net": False, "source": "fee notice"}
         return sec, [_notice(case, base, view, lm, month)]
 
     hint = next((e for e in s["evidence"] if re.search(CAUSE_HINT.get(cause, "^$"), e, re.IGNORECASE)), ev[0])
-    sec = await _retrieve(case, f"{cause}: {hint}")
+    sec = await _retrieve(case, f"{cause}: {hint}", st.get("llm_drafting", False))
     ref = sec["ref"]
 
     if cause == "device":
@@ -112,7 +124,10 @@ async def plan_case(tools, st: dict, case: dict) -> tuple[dict, list[dict]]:
                  "visit_date": nice_date(nxt), "time_window": ACT["technician_window"].replace("-", " to ")}
         msg = _message(case, "message", "The device has a fault. Tell the owner a technician visit is booked to fix or "
                        "swap it on the visit date in the time window. Until then customers can pay by scanning the "
-                       "printed QR. Apologise briefly for the trouble.", facts, ev, ref, sec)
+                       "printed QR. Apologise briefly for the trouble.", facts, ev, ref, sec,
+                       english_template=f"Hello {owner}, your {facts['device']} has a fault. A technician visit is "
+                       f"booked for {facts['visit_date']}, {facts['time_window']}, to fix or replace it. Until then, "
+                       "customers can pay by scanning your printed QR. Sorry for the trouble." + SIGN)
         return sec, [book, msg]
 
     if cause == "network":
@@ -120,7 +135,12 @@ async def plan_case(tools, st: dict, case: dict) -> tuple[dict, list[dict]]:
         facts = {**base, "peak_errors_per_day": dev.get("peak_errors_avg_7d"), "offpeak_errors_per_day": dev.get("offpeak_errors_avg_7d")}
         return sec, [_message(case, "message", "Payments fail at rush hours because of the mobile network, not the device. "
                               "Give the peak-hour guidance from the policy section. Say no technician is needed because "
-                              "the device itself is fine.", facts, ev, ref, sec)]
+                              "the device itself is fine.", facts, ev, ref, sec,
+                              english_template=f"Hello {owner}, some payments at your shop fail at rush hours. This is "
+                              "the mobile network, not your device, so a technician visit is not needed. Keep the device "
+                              "near the shop front, away from metal shutters. Use Wi-Fi if your shop has it. Keep the "
+                              "printed QR visible as a backup at rush hours, and ask customers to wait for the payment "
+                              "announcement before they leave." + SIGN)]
 
     if cause == "charge":
         unnot = [x for x in view["deductions_30d"] if not x["notified"]]
@@ -137,7 +157,9 @@ async def plan_case(tools, st: dict, case: dict) -> tuple[dict, list[dict]]:
         facts = {**base, "deduction": what, "refund_amount": inr(amount)}
         msg = _message(case, "message", "Explain the deduction plainly: what it was, the amount and the date. Say they "
                        "were not told in advance, and that the amount will be refunded.", facts, ev, ref, sec,
-                       tier=tier, approval_type=waiver["approval_type"], tier_reason=waiver["tier_reason"])
+                       tier=tier, approval_type=waiver["approval_type"], tier_reason=waiver["tier_reason"],
+                       english_template=f"Hello {owner}, we deducted {what} from your settlement without telling you "
+                       f"in advance. That should not have happened. {inr(amount)} will be refunded to you." + SIGN)
         return sec, [waiver, msg]
 
     if cause == "fee" and not lm.get("is_fee_affected"):
@@ -149,15 +171,11 @@ async def plan_case(tools, st: dict, case: dict) -> tuple[dict, list[dict]]:
         return sec, notice + [visit]
 
     if cause == "fee":
-        tpl = fill(fee_templates()["estimate"], value_above_2000=inr(lm["value_above_2000"])[1:],
-                   est_monthly_fee=inr(lm["est_monthly_fee"])[1:])
-        facts = {**base, "month": month, "value_above_2000": inr(lm["value_above_2000"]),
-                 "est_monthly_fee": inr(lm["est_monthly_fee"])}
-        msg = _message(case, "fee_estimate", "Explain the merchant's own estimated UPI fee.", facts, ev, ref, sec,
-                       gate="fee_message", template=tpl)
+        # The §6.2 estimate normally went out at go-live (notice:fee); the Save case adds the visit.
+        msg = [] if "notice:fee" in st["handled_cases"] else [_fee_estimate(case, base, lm, month, ev, ref, sec)]
         visit = _visit(prof, case, nxt, "retain", f"Retain: {_short(hint)}. Walk through est. fee "
                        f"{inr(lm['est_monthly_fee'])}/month on {inr(lm['value_above_2000'])} above ₹2,000 ({month})", ev, ref)
-        return sec, [msg, visit]
+        return sec, msg + [visit]
 
     if cause == "competitor":
         return sec, [_visit(prof, case, nxt, "retain", f"Retain: {_short(hint)}. Ask what changed and what a rival "
@@ -166,7 +184,10 @@ async def plan_case(tools, st: dict, case: dict) -> tuple[dict, list[dict]]:
     if cause == "closed":
         return sec, [_message(case, "message", "There have been no payments for over two weeks. Ask kindly whether the "
                               "shop is open, closed for a while, or having trouble with payments, and ask them to reply "
-                              "with a reopening date if they are away. No offers.", base, ev, ref, sec)]
+                              "with a reopening date if they are away. No offers.", base, ev, ref, sec,
+                              english_template=f"Hello {owner}, we have not seen any payments at your shop for over two "
+                              "weeks. Is the shop open, closed for a while, or is something wrong with payments? If you "
+                              "are away, please reply with the date you plan to reopen." + SIGN)]
 
     if cause == "threshold":
         comp = {**retrieval.section("Compliance rules §3.2"), "safety_net": False}
@@ -196,7 +217,15 @@ async def plan_case(tools, st: dict, case: dict) -> tuple[dict, list[dict]]:
                             "are never charged; (3) our estimate of the sales taken in cash at month-end instead of UPI; "
                             "(4) the required line, exactly. Do not copy the message templates in the policy section; "
                             "they are for other cases. Do not tell them what to do. Promise nothing about loans.",
-                            facts, ev, ref, sec, gate="cost_comparison", compliance_ref=comp["ref"])]
+                            facts, ev, ref, sec, gate="cost_comparison", compliance_ref=comp["ref"],
+                            english_template=f"Hello {owner}, last month ({month}) your UPI was "
+                            f"{facts['monthly_upi_value']}, under ₹1 lakh, so no fee applies now. Under the proposed "
+                            f"framework, if your monthly UPI went above ₹1 lakh, the fee would be about "
+                            f"{facts['fee_if_above_1_lakh']} a month: 0.4% only on the {facts['value_above_2000']} you "
+                            "received in payments above ₹2,000. Payments of ₹2,000 or less are never charged. "
+                            + (f"We estimate about {inr(cash)} of sales at month-end were taken in cash instead of UPI. "
+                               if cash else "")
+                            + facts["required_line"] + SIGN)]
         loan = await _loan_action(tools, st, case, base, ev)
         return sec, actions + ([loan] if loan else [])
 
@@ -206,7 +235,11 @@ async def plan_case(tools, st: dict, case: dict) -> tuple[dict, list[dict]]:
         facts = {**base, "avg_daily_upi_4w": s["features"].get("avg_daily_upi_28d"), "rental": "₹99–199 a month (illus.)"}
         offer = _message(case, "offer", "Offer a Soundbox: payments are announced out loud, so the owner does not need to "
                          "check the phone for each one. State the monthly rental. Do not say free.", facts, ev,
-                         ref, cat, tool="make_offer")
+                         ref, cat, tool="make_offer",
+                         english_template=f"Hello {owner}, you take about {facts['avg_daily_upi_4w']} UPI payments a "
+                         "day. A Soundbox announces each payment out loud, so you do not need to check your phone every "
+                         "time. The rental is ₹99–199 a month, taken from the first settlement of the month. Reply if "
+                         "you would like one." + SIGN)
         offer["args"].update(product="soundbox")
         return sec, [offer]
     stage = s["features"].get("activation_stage")
@@ -215,9 +248,24 @@ async def plan_case(tools, st: dict, case: dict) -> tuple[dict, list[dict]]:
     return sec, [_visit(prof, case, nxt, "pitch", brief, ev, ref)]
 
 
+def _fee_estimate(case, base, lm, month, ev, ref, sec) -> dict:
+    """§6.2 fee estimate with the merchant's own numbers from the last full month."""
+    tpl = fill(fee_templates()["estimate"], value_above_2000=inr(lm["value_above_2000"])[1:],
+               est_monthly_fee=inr(lm["est_monthly_fee"])[1:])
+    facts = {**base, "month": month, "value_above_2000": inr(lm["value_above_2000"]),
+             "est_monthly_fee": inr(lm["est_monthly_fee"])}
+    return _message(case, "fee_estimate", "Explain the merchant's own estimated UPI fee.", facts, ev, ref, sec,
+                    gate="fee_message", template=tpl)
+
+
 def _notice(case, base, view, lm, month) -> dict:
-    """§6.2 not-affected message, variant A (exempt) or B (no payments above ₹2,000), from last month's data."""
+    """At go-live: the §6.2 estimate for a fee-affected merchant; otherwise the not-affected message,
+    variant A (exempt) or B (no payments above ₹2,000). All from last month's data."""
     sec = {**retrieval.section("Retention playbook §6.2"), "safety_net": False}
+    if lm.get("is_fee_affected"):
+        ev = [(f"Fee status for {month}: affected; {inr(lm['value_above_2000'])} in UPI payments above ₹2,000, "
+               f"est. fee {inr(lm['est_monthly_fee'])}/month")]
+        return _fee_estimate(case, base, lm, month, ev, sec["ref"], sec)
     variant = view["fee"]["not_affected_variant"]
     tpl = fee_templates()[variant]
     msg = fill(tpl, monthly_upi_value=inr(lm["monthly_upi_value"])[1:]) if variant == "A_exempt" else tpl
@@ -265,6 +313,11 @@ async def _loan_action(tools, st, case, base, ev) -> dict | None:
                    "makes the final decision. Do not mention the UPI fee or the ₹1 lakh limit. No pressure.",
                    facts, ev, sec["ref"], sec, gate="loan_offer", tool="make_offer", max_words=ACT["loan_max_words"],
                    tier="human_approves", approval_type="loan_offer", tier_reason="Loan offer: RM approves (Compliance rules §5)",
-                   quote=q, compliance_ref="Compliance rules §1")
+                   quote=q, compliance_ref="Compliance rules §1",
+                   english_template=f"Hello {base['owner_first_name']}, {lender} has made an in-principle loan offer: "
+                   f"{facts['amount']} for {facts['tenure']} at {facts['apr']}. Processing fee: {q['processing_fee']}. "
+                   f"Prepayment: {q['prepayment']}. Late payment: {q['late_payment']}. Key Fact Statement: "
+                   f"{q['kfs_link']}. The offer is valid until {facts['valid_until']}. You can apply if you wish; the "
+                   "lender makes the final decision." + SIGN)
     act["args"].update(product="loan")
     return act

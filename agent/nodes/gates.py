@@ -13,7 +13,7 @@ import json
 import re
 
 from agent.nodes.plan import POLICY, inr
-from common.llm import complete
+from common.llm import LLMNotCached, complete
 from common.settings import REPO_ROOT
 
 CONF, ESC = POLICY["confidence"], POLICY["escalation"]
@@ -143,12 +143,25 @@ def gate(kind: str, draft: dict, facts: dict, use_judge: bool = True) -> dict:
     if hits:
         return {"result": "block", "rule_hits": hits, "judge": None,
                 "refs": sorted({h["rule"] for h in hits}, key=_ref_key)}
-    j = judge(kind, draft, facts) if use_judge else {"verdict": "pass", "rule": None, "reason": "judge skipped"}
-    return {"result": j["verdict"], "rule_hits": [], "judge": j, "refs": [j["rule"]] if j.get("rule") else []}
+    if not use_judge:
+        return {"result": "pass", "rule_hits": [], "judge": None, "refs": [], "mode": "rules only"}
+    try:
+        j = judge(kind, draft, facts)
+    except LLMNotCached:
+        # Replay mode, judge answer not cached: the rules passed; the RM or the log shows the judge did not run.
+        return {"result": "pass", "rule_hits": [], "judge": {"verdict": "not_cached", "rule": None,
+                "reason": "judge not cached (replay mode); rules passed"}, "refs": [], "mode": "rules, judge not cached"}
+    return {"result": j["verdict"], "rule_hits": [], "judge": j, "refs": [j["rule"]] if j.get("rule") else [],
+            "mode": "rules + judge"}
+
+
+def gate_note(g: dict) -> str:
+    return {"rules only": "rules ok, judge not used (template)", "rules, judge not cached": "rules ok, judge not cached",
+            "rules + judge": "rules ok, judge pass"}.get(g.get("mode"), "rules ok")
 
 
 def _ref_key(ref: str) -> tuple:
     return tuple(int(x) for x in ref.split("§")[1].split("."))
 
 
-__all__ = ["check_rules", "confidence", "escalation", "gate", "inr", "judge"]
+__all__ = ["check_rules", "confidence", "escalation", "gate", "gate_note", "inr", "judge"]

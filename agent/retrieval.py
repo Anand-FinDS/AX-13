@@ -20,7 +20,7 @@ import re
 import sys
 import uuid
 
-from common.llm import embed
+from common.llm import LLMNotCached, embed
 from common.settings import REPO_ROOT, get_settings
 
 log = logging.getLogger("ax13.retrieval")
@@ -148,7 +148,14 @@ def section(ref: str) -> dict:
 def retrieve(query: str, doc: str | None = None, k: int = 3, cause: str | None = None) -> list[dict]:
     if doc is not None and doc not in DOCS:
         raise ValueError(f"doc must be one of {list(DOCS)}")
-    qv = embed([query])[0]
+    try:
+        qv = embed([query])[0]
+    except LLMNotCached:
+        # Replay mode and this query was never embedded: no API call. With a known cause the cited
+        # section comes from the cause map; without one there is nothing to answer from.
+        if not cause or cause not in EXPECTED_SECTION:
+            raise
+        return [{**section(EXPECTED_SECTION[cause]), "safety_net": True, "not_cached": True}]
     try:
         hits = _search_qdrant(qv, doc, k)
     except Exception as e:  # noqa: BLE001  any Qdrant failure (down, missing collection): answer from memory

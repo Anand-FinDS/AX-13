@@ -25,6 +25,12 @@ def fixture_for(merchant_id: str, kind: str) -> dict | None:
     return f if f and f["draft_kind"] == kind else None
 
 
+def template(spec: dict, source: str = "template") -> dict:
+    """The code-filled English message, no LLM (merchants outside the demo set, or a draft not cached)."""
+    t = spec.get("english_template") or spec.get("template")
+    return {"text": t, "english": t, "source": source}
+
+
 def write(spec: dict, language: str, feedback: dict | None = None) -> dict:
     """One draft: {'text', 'english', 'source'}."""
     if spec.get("template") and language == "English":

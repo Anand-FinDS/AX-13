@@ -261,6 +261,7 @@ Every folder with Python code is a package (`__init__.py`), so modules run as `p
 
 - Start infra (from repo root): `docker compose --env-file .env -f infra/docker-compose.yml up -d`
 - Verify: `python scripts/check_connections.py --llm-call` must pass before any phase work.
+- LLM spend is cache-first: `AX13_LLM_MODE=replay` (default) serves every LLM and embedding call from `data/out/llm_cache/` and `data/out/embed_cache/` and never calls the API on a miss. Live mode is opt-in (`--live`, or the app toggle with a confirm). Only the merchants in `agent/policy.yaml › llm_merchants` get LLM drafting; everyone else gets templates with a rules-only gate (loans always get the judge). Copy the cache folders to the demo laptop.
 - Ports: Postgres 5432, Qdrant 6333 (UI at /dashboard), Grafana 3000, OTLP 4318 (HTTP; app uses this). 4317 gRPC exposed but unused.
 - Windows: Smart App Control / application-control policies can block compiled DLLs (seen with grpcio). Prefer HTTP clients; if blocked, disable Smart App Control or run Python inside WSL2.
 - Demo laptop installs from a frozen `requirements.lock`.

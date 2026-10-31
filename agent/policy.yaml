@@ -19,3 +19,8 @@ actions:
   loan_cooldown_days: 90                  # no second loan offer within 90 days
   message_max_words: 90
   loan_max_words: 140
+
+# LLM spend: only these merchants get LLM drafting (in their language) and the LLM judge on every gated
+# message. Everyone else gets the code-filled English template and a rules-only gate; loan drafts always
+# get the judge. RM-queue items can be drafted by the LLM on demand from the app.
+llm_merchants: [M_DEMO_RAVI, M_DEMO_MEENA, M_DEMO_SMALL]

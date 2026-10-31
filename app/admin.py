@@ -10,6 +10,7 @@ sim_state or on approval decisions).
 """
 from __future__ import annotations
 
+import json
 from datetime import date, datetime, timedelta
 from typing import Literal
 
@@ -186,3 +187,14 @@ def day_counts() -> list[dict]:
     with _connect() as conn:
         return conn.execute("SELECT ts::date AS day, action_type, autonomy_tier, status, count(*) AS n FROM actions "
                             "GROUP BY 1, 2, 3, 4 ORDER BY 1, 2").fetchall()
+
+
+def set_localized_draft(approval_id: str, action_id: str, draft: dict) -> None:
+    """Store a merchant-language draft the RM generated in the app (LLM, gate-checked) on the approval.
+    When the RM approves, the agent sends it instead of the English template (if its gate passed)."""
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE actions SET payload_json = payload_json || jsonb_build_object('localized', "
+            "coalesce(payload_json->'localized', '{}'::jsonb) || jsonb_build_object(%s::text, %s::jsonb)) "
+            "WHERE action_id = (SELECT action_id FROM approvals WHERE approval_id = %s)",
+            (action_id, json.dumps(draft, ensure_ascii=False), approval_id))

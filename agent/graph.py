@@ -25,19 +25,25 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
 from agent.nodes import draft as drafting
-from agent.nodes.gates import confidence, escalation, gate
-from agent.nodes.plan import LANG, plan_case
+from agent.nodes.gates import confidence, escalation, gate, gate_note
+from agent.nodes.plan import LANG, POLICY, plan_case
 from agent.scoring import score_merchant
 from agent.scoring.scorer import TH
 from agent.tools import ToolRejected, call
+from common.llm import LLMNotCached
 
 GATE_REF = {"fee_message": "Compliance rules §6", "cost_comparison": "Compliance rules §3.2",
             "loan_offer": "Compliance rules §1"}
 
 
+LLM_MERCHANTS = set(POLICY["llm_merchants"])
+
+
 class AgentState(TypedDict, total=False):
     merchant_id: str
     inject_fixture: bool
+    dry_run: bool              # cost estimate: stop before any write, log nothing
+    llm_drafting: bool         # LLM drafts and judges this merchant's messages (demo merchants)
     sim_date: str
     fee_go_live_date: str
     score: dict
@@ -54,7 +60,7 @@ class AgentState(TypedDict, total=False):
     status: str
 
 
-def build_graph(tools, checkpointer=None):
+def build_graph(tools, checkpointer=None, interrupt_before: list[str] | None = None):
     async def run_tool(a: dict, mid: str, **extra) -> None:
         args = {"merchant_id": mid, **a["args"], "evidence": a["evidence"], "playbook_ref": a["playbook_ref"],
                 "line": a["line"], **extra}
@@ -73,6 +79,7 @@ def build_graph(tools, checkpointer=None):
         view = await call(tools, "get_merchant_view", merchant_id=mid, days=1)
         conf = confidence(s, s["line"], TH) if s["line"] in TH else None
         return {"sim_date": sim["sim_date"], "fee_go_live_date": sim["fee_go_live_date"], "score": s,
+                "llm_drafting": mid in LLM_MERCHANTS,
                 "profile": view["profile"],
                 "view": {k: view[k] for k in ("open_tickets", "deductions_30d", "fee", "devices")},
                 "cases": [], "sections": [], "actions": [], "escalation": {}, "approvals": [], "decisions": {},
@@ -83,20 +90,19 @@ def build_graph(tools, checkpointer=None):
     async def route(st: AgentState) -> dict:
         s, handled = st["score"], set(st["handled_cases"])
         lm = st["view"]["fee"].get("last_full_month") or {}
-        not_affected = bool(lm) and not lm["is_fee_affected"]
         cases = []
         if s["line"] in ("save", "grow"):
             key = f"{s['line']}:{s['cause']}"
             case = {"key": key, "line": s["line"], "cause": s["cause"], "confidence": confidence(s, s["line"], TH),
                     "also": []}
-            if (s["cause"] == "fee" and not_affected) or s["cause"] == "threshold":
-                # fee/not affected: the not-affected message goes with this case, once; threshold: the cost
+            if s["cause"] in ("fee", "threshold"):
+                # fee: the go-live fee message goes with this case if it has not gone yet; threshold: the cost
                 # comparison already tells the merchant where they stand, so no separate notice
                 case["also"] = ["notice:fee"]
             if key not in handled:
                 cases.append(case)
         fee_live = st["sim_date"] >= st["fee_go_live_date"]
-        if fee_live and not_affected and "notice:fee" not in handled and not any(c["also"] for c in cases):
+        if fee_live and lm and "notice:fee" not in handled and not any(c["also"] for c in cases):
             cases.append({"key": "notice:fee", "line": "none", "cause": "fee_notice", "confidence": None, "also": []})
         if cases:
             status, msg = "case", "route: " + ", ".join(c["key"] for c in cases)
@@ -110,7 +116,8 @@ def build_graph(tools, checkpointer=None):
         sections, actions = [], []
         for case in st["cases"]:
             sec, acts = await plan_case(tools, st, case)
-            sections.append({"case": case["key"], "ref": sec["ref"], "safety_net": sec.get("safety_net", False)})
+            sections.append({"case": case["key"], "ref": sec["ref"], "safety_net": sec.get("safety_net", False),
+                             "source": sec.get("source", "")})
             actions += acts
         for i, a in enumerate(actions, 1):
             a["id"] = f"a{i}"
@@ -118,7 +125,7 @@ def build_graph(tools, checkpointer=None):
                 a["status"] = "ready"
         return {"sections": sections, "actions": actions,
                 "log": st["log"] + [f"map: {s['case']} -> {s['ref']}" + (" (safety net)" if s["safety_net"] else "")
-                                    for s in sections]
+                                    + (f" [{s['source']}]" if s["source"] else "") for s in sections]
                 + [f"plan: {a['id']} {a['kind']} via {a['tool']} [{a['tier']}]" for a in actions]}
 
     async def escalation_gate(st: AgentState) -> dict:
@@ -158,8 +165,13 @@ def build_graph(tools, checkpointer=None):
             fx = drafting.fixture_for(st["merchant_id"], a["kind"]) if st.get("inject_fixture") else None
             if fx and not a.get("drafts"):
                 d = {"text": fx["text"], "english": fx["english"], "source": f"eval fixture {fx['id']} (injected for the demo)"}
+            elif st.get("llm_drafting"):
+                try:
+                    d = await asyncio.to_thread(drafting.write, a["draft_spec"], language, a.get("feedback"))
+                except LLMNotCached:
+                    d = drafting.template(a["draft_spec"], "template (LLM not cached)")
             else:
-                d = await asyncio.to_thread(drafting.write, a["draft_spec"], language, a.get("feedback"))
+                d = drafting.template(a["draft_spec"])
             a.setdefault("drafts", []).append(d)
             a["draft"], a["status"] = d, ("drafted" if a.get("gate") else "ready")
         await asyncio.gather(*(one(a) for a in todo))
@@ -171,18 +183,19 @@ def build_graph(tools, checkpointer=None):
         log = []
         for a in [a for a in actions if a["status"] == "drafted"]:
             facts = a["draft_spec"]["facts"]
-            g = await asyncio.to_thread(gate, a["gate"], a["draft"], facts)
+            use_judge = a["gate"] == "loan_offer" or bool(st.get("llm_drafting"))
+            g = await asyncio.to_thread(gate, a["gate"], a["draft"], facts, use_judge)
             a.setdefault("gate_results", []).append(g)
             ref = g["refs"][0] if g["refs"] else GATE_REF[a["gate"]]
-            res = await call(tools, "log_gate_result", merchant_id=st["merchant_id"], draft_kind=a["gate"],
-                             draft={**a["draft"], "attempt": len(a["drafts"])}, result=g["result"],
-                             rule_hits=g["rule_hits"], judge=g["judge"],
-                             evidence=a["evidence"], playbook_ref=ref, line=a["line"])
+            res = {"action_id": "dry run"} if st.get("dry_run") else await call(
+                tools, "log_gate_result", merchant_id=st["merchant_id"], draft_kind=a["gate"],
+                draft={**a["draft"], "attempt": len(a["drafts"])}, result=g["result"],
+                rule_hits=g["rule_hits"], judge=g["judge"], evidence=a["evidence"], playbook_ref=ref, line=a["line"])
             why = "; ".join(f"{h['rule']} {h['check']}" for h in g["rule_hits"]) or \
                 (f"judge: {g['judge']['reason']}" if g["judge"] else "")
             log.append(f"compliance gate: {a['id']} {a['kind']} draft #{len(a['drafts'])} -> {g['result'].upper()}"
-                       + (f" ({why})" if g["result"] != "pass" else " (rules ok, judge pass)") + f" [{res['action_id']}]")
-            fixable = not a["draft"]["source"].startswith("template (")
+                       + (f" ({why})" if g["result"] != "pass" else f" ({gate_note(g)})") + f" [{res['action_id']}]")
+            fixable = a["draft"]["source"].startswith("LLM") or a["draft"]["source"].startswith("eval fixture")
             if g["result"] == "pass":
                 a["status"] = "ready"
             elif g["result"] == "block" and len(a["drafts"]) < 2 and fixable:
@@ -199,8 +212,12 @@ def build_graph(tools, checkpointer=None):
         log, approvals = [], []
         for a in actions:
             if a.get("draft"):
+                g = (a.get("gate_results") or [None])[-1]
                 a["args"]["text"] = a["draft"]["text"]
                 a["args"]["english"] = a["draft"]["english"]
+                a["args"]["audit"] = {"source": a["draft"]["source"], "drafts": len(a["drafts"]),
+                                      "gate": g["result"] if g else None, "gate_refs": g["refs"] if g else [],
+                                      "judge": (g.get("judge") or {}).get("verdict") if g else None}
         for a in actions:
             if a["status"] == "ready" and a["tier"] == "agent_alone":
                 await run_tool(a, mid)
@@ -221,6 +238,9 @@ def build_graph(tools, checkpointer=None):
         for typ, acts in groups.items():
             draft = {"actions": [{"id": a["id"], "kind": a["kind"], "tool": a["tool"], "args": a["args"],
                                   "english": (a.get("draft") or {}).get("english"),
+                                  "source": (a.get("draft") or {}).get("source"), "gate_kind": a.get("gate"),
+                                  "spec": a.get("draft_spec"),
+                                  "language": LANG.get(st["profile"]["language_pref"], "English"),
                                   "gate": (a.get("gate_results") or [None])[-1]} for a in acts],
                      "why_approval": acts[0].get("tier_reason")}
             if typ == "waiver":
@@ -255,6 +275,10 @@ def build_graph(tools, checkpointer=None):
                 if got["decision"] != "approved":
                     a["status"] = got["decision"] if got["decision"] == "rejected" else "pending_approval"
                     continue
+                loc = ((got.get("draft") or {}).get("localized") or {}).get(aid)
+                if loc and loc.get("gate") == "pass" and a.get("args", {}).get("text") is not None:
+                    a["args"].update(text=loc["text"], english=loc["english"],
+                                     audit={**a["args"].get("audit", {}), "source": loc["source"], "gate": "pass"})
                 extra = {"approval_id": ap["approval_id"]} if ap["type"] in ("loan_offer", "waiver") else {}
                 await run_tool(a, mid, **extra)
                 log.append(f"act: {a['tool']}" + (f" ({a['args'].get('product')})" if a["tool"] == "make_offer" else "")
@@ -291,7 +315,7 @@ def build_graph(tools, checkpointer=None):
     g.add_edge("await_approval", "execute_approved")
     g.add_edge("execute_approved", "finish")
     g.add_edge("finish", END)
-    return g.compile(checkpointer=checkpointer)
+    return g.compile(checkpointer=checkpointer, interrupt_before=interrupt_before)
 
 
 def summary(values: dict[str, Any]) -> dict:

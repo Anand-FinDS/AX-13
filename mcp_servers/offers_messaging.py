@@ -36,13 +36,15 @@ Line = Literal["save", "grow", "none"]
 
 @mcp.tool()
 def send_message(merchant_id: str, channel: Literal["whatsapp", "sms", "app"], text: str, evidence: list[str],
-                 playbook_ref: str, line: Line = "save", english: str | None = None) -> dict:
+                 playbook_ref: str, line: Line = "save", english: str | None = None, audit: dict | None = None) -> dict:
     """Send the merchant a message (mock: logged and copied to the CRM, nothing is sent). `english` is the
-    English version kept for the audit log when the message is in another language."""
+    English version kept for the audit log when the message is in another language; `audit` records how
+    the text was made (template or LLM) and the compliance gate result."""
     check_citation(evidence, playbook_ref, line)
     require_merchant(merchant_id)
     with pool().connection() as conn:
-        action_id = write_action(conn, merchant_id, line, "message", {"channel": channel, "text": text, "english": english},
+        action_id = write_action(conn, merchant_id, line, "message", {"channel": channel, "text": text, "english": english,
+                                                                       "audit": audit},
                                  evidence, playbook_ref, "agent_alone", "sent")
         conn.execute("INSERT INTO crm_notes (note_id, merchant_id, ts, source, text) VALUES (%s, %s, %s, 'agent', %s)",
                      (new_id("N"), merchant_id, sim_ts(), f"[{channel}] {text}"))
@@ -52,7 +54,8 @@ def send_message(merchant_id: str, channel: Literal["whatsapp", "sms", "app"], t
 @mcp.tool()
 def make_offer(merchant_id: str, product: Literal["soundbox", "pos", "loan", "insurance", "plan_change"],
                channel: Literal["app", "whatsapp", "field"], text: str, evidence: list[str], playbook_ref: str,
-               line: Line = "grow", approval_id: str | None = None, english: str | None = None) -> dict:
+               line: Line = "grow", approval_id: str | None = None, english: str | None = None,
+               audit: dict | None = None) -> dict:
     """Make a catalogue offer. Loan offers require an approved approval_id (Compliance rules §5)."""
     check_citation(evidence, playbook_ref, line)
     require_merchant(merchant_id)
@@ -63,7 +66,7 @@ def make_offer(merchant_id: str, product: Literal["soundbox", "pos", "loan", "in
                      "VALUES (%s, %s, %s, %s, %s, 'pending')", (offer_id, merchant_id, sim_date(), product, channel))
         action_id = write_action(conn, merchant_id, line, "offer",
                                  {"offer_id": offer_id, "product": product, "channel": channel, "text": text, "english": english,
-                                  "approval_id": approval_id}, evidence, playbook_ref,
+                                  "audit": audit, "approval_id": approval_id}, evidence, playbook_ref,
                                  "human_approves" if approval else "agent_alone", "sent")
         if approval:
             conn.execute("UPDATE actions SET status = 'executed' WHERE action_id = %s", (approval["action_id"],))
