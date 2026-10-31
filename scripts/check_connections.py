@@ -12,12 +12,14 @@ from __future__ import annotations
 import argparse
 import os
 import socket
+import sys
 import time
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
 load_dotenv()
+sys.stdout.reconfigure(encoding="utf-8")  # Windows cp1252 console can't print → or ·
 RESULTS: list[tuple[str, bool, str, bool]] = []
 
 

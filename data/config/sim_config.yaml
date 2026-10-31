@@ -1,0 +1,99 @@
+# AX-13 simulation config. All values are assumptions unless marked FACT.
+# Day notation used across configs: D0 = sim_start_date, G0 = fee_go_live_date.
+
+seed: 13                     # single global seed; AX13_SEED in .env overrides if set
+
+scale:
+  merchants: 200             # includes the 3 scripted demo merchants
+  history_days: 120          # D-119 .. D0 inclusive (txn_daily)
+  future_days: 30            # D+1 .. D+30 (txn_daily_future), released by the clock
+
+dates:
+  sim_start_date: 2026-10-31   # D0: eight days before Diwali
+  # Festive season. Navratri start / Diwali / a week after. Verify against the 2026 calendar.
+  festive_start: 2026-10-11
+  festive_peak: 2026-11-08     # Diwali (Lakshmi Puja)
+  festive_end: 2026-11-15
+  fee_go_live_date: 2026-11-13 # G0 = D+13, after the festive peak. Real date not announced.
+
+# FACT (as reported): proposed NPCI framework for P2M UPI. May change on final notification.
+fee_rules:
+  rate: 0.004                  # 0.4%
+  applies_above_txn_value: 2000
+  cap_per_txn: 300             # reached only on a single payment above 75,000
+  exempt_below_monthly_upi: 100000
+  # Approximation (daily aggregates): est_monthly_fee = 0.004 x value_above_2000,
+  # minus (0.004 x v - 300) for each simulated single payment v > 75,000.
+  # Very large payments are simulated for electronics only (see categories.yaml).
+  # is_fee_affected = not exempt AND at least one payment above 2,000 in the month.
+  # merchant_fee_monthly holds completed months only; the current month is computed live.
+  reference_month: "2026-10"   # last full calendar month before G0, used for labels and upi_fee
+
+zones:
+  - zone_id: Z_A
+    name: Electronic City
+    languages: [kn, hi, en]
+    pin_codes: ["560100", "560099"]
+    bbox: {lat: [12.835, 12.865], lng: [77.650, 77.690]}   # approximate
+    waiver_budget_month: 50000
+    waiver_cap_per_merchant: 500
+  - zone_id: Z_B
+    name: Jayanagar
+    languages: [kn, en, ta]
+    pin_codes: ["560011", "560041", "560069"]
+    bbox: {lat: [12.915, 12.945], lng: [77.575, 77.600]}   # approximate
+    waiver_budget_month: 50000
+    waiver_cap_per_merchant: 500
+
+field_agents:
+  per_zone: 3
+  visits_per_day: [10, 15]
+  languages_per_agent: [2, 3]  # drawn from zone languages, always including kn
+
+merchants:
+  zone_split: {Z_A: 0.5, Z_B: 0.5}
+  onboard_months_before_start: [6, 60]
+  soundbox_rent_month: [99, 199]
+  value_tier_monthly_upi:      # trailing 90-day average monthly UPI value
+    low_below: 200000          # ~ 33rd percentile of generated merchants
+    high_from: 1000000         # ~ 80th percentile; mid in between
+
+txn:
+  daily_noise_sigma: [0.08, 0.12]       # per-merchant, fraction of base
+  ticket_sigma_within_range: 1.645      # category ranges read as 5th-95th percentile (lognormal)
+  failed_rate: [0.005, 0.015]           # of attempts
+  failed_debited_share: [0.05, 0.15]    # of failures
+  peak_hour_share: [0.45, 0.60]         # 11-14h and 18-21h
+
+device:
+  healthy_uptime_pct: [98.0, 100.0]
+  network_errors_peak_lambda: 0.6       # healthy Poisson rates per day
+  network_errors_offpeak_lambda: 0.3
+
+settlements:
+  delayed_prob: 0.02
+  delay_hours: [4, 48]
+  held_prob: 0.003
+  card_mdr: 0.018                       # assumption; UPI carries no MDR before G0
+
+deductions:
+  soundbox_rent_day_of_month: 1         # rent taken from the settlement on the 1st
+  other_deduction_prob_per_month: 0.03  # small notified misc charge
+  post_go_live_upi_fee: true            # from G0, daily notified 'upi_fee' deduction on fee-affected merchants
+
+tickets:
+  background_rate_per_180d: 0.6         # random tickets on any merchant
+  background_categories: {settlement: 0.35, failed_txn: 0.30, device: 0.15, charge: 0.05, other: 0.15}
+  resolve_after_days: [1, 5]            # background tickets
+  planted_resolve_after_days: [3, 14]   # archetype tickets (real problems take longer);
+                                        # device tickets not before the fault ends; network tickets
+                                        # stay open while the network issue continues
+  # Tickets whose natural resolution falls after D0, and all future tickets,
+  # are left open: resolving them is AX-13's job.
+  channel_mix: {call: 0.55, app: 0.35, field: 0.10}
+  non_english_summary_share: 0.25       # Hindi/Kannada transliterated templates
+
+offers:
+  rate_per_90d: 0.8
+  channel_mix: {app: 0.45, whatsapp: 0.40, field: 0.15}
+  response_mix: {accepted: 0.15, declined: 0.35, no_response: 0.50}

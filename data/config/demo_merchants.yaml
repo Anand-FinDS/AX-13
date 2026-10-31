@@ -1,0 +1,101 @@
+# Three scripted demo merchants (DATA_PREPARATION.md §10). Identical on every run.
+# Day offsets: anchor D = sim_start_date (2026-11-03), G = fee_go_live_date (2026-11-13).
+# Noise for scripted merchants is fixed-seeded and small (sigma 4%) so the story reads cleanly.
+#
+# profile: targets for a normal (un-shocked) day. Category weekly + festive patterns still apply.
+# events: applied in order. Types:
+#   volume_ramp     - linear ramp of the volume multiplier from its current value to `to` across [from, to_day]; holds after
+#   volume_spike    - multiply volume by `mult` across [from, to_day]
+#   device_offline  - device offline across [from, to_day]; hardware_fault flag as given
+#   ticket          - one ticket opened on `day`
+#   offer           - one offers_history row on `day`
+#   threshold_hold  - month-end holding pattern (months: all, or a list of YYYY-MM)
+
+merchants:
+
+  M_DEMO_SMALL:
+    name: Lakshmi Fruits & Vegetables
+    owner_name: Lakshmamma
+    category: fruit_veg
+    zone_id: Z_A
+    pin_code: "560100"
+    language_pref: kn
+    onboard_months_before_start: 26
+    products: {qr: true, soundbox: false, pos: false}
+    profile:
+      monthly_upi_value: 35000         # well under the 1 lakh exemption
+      avg_ticket: 110
+      monthly_value_above_2000: 0
+    events: []
+    label:
+      archetype: scripted
+      expected_line: none
+      expected_action: not_affected_message
+      expected_escalation: false
+      is_fee_affected: false
+      notes: Below the proposed exemption. One 'you are not affected' message at G, nothing else.
+
+  M_DEMO_RAVI:
+    name: Ravi General Stores
+    owner_name: Ravi Kumar
+    category: kirana
+    zone_id: Z_A
+    pin_code: "560100"
+    language_pref: hi
+    onboard_months_before_start: 31
+    products: {qr: true, soundbox: true, pos: false}
+    soundbox_rent_month: 149
+    profile:
+      monthly_upi_value: 275000        # ~2.75L
+      monthly_value_above_2000: 135000 # bulk monthly-grocery orders; est. fee ~540/month
+      avg_ticket_above_2000: 2300      # ~2 such payments a day
+      avg_ticket_small: 150            # ~30 small payments a day
+    events:
+      - {type: offer, day: -200, anchor: D, product: soundbox, channel: field, response: accepted}   # pre-history, how he got the Soundbox
+      - {type: volume_ramp, anchor: D, from: -21, to_day: 0, to: 0.55}                     # observed UPI down ~40% over 3 weeks (festive lift offsets part)
+      - {type: device_offline, anchor: D, from: -6, to_day: 0, device: soundbox, hardware_fault: true}
+      - {type: ticket, anchor: D, day: -4, category: device, channel: call, status: open, sentiment: frustrated,
+         summary: "Soundbox keeps disconnecting, customers not sure if payment came"}
+      - {type: volume_ramp, anchor: D, from: 1, to_day: 7, to: 1.00}                       # device fixed D+1, recovered by D+7
+      - {type: volume_spike, anchor: D, from: 3, to_day: 6, mult: 1.25}                    # Diwali stock-up on top of category lift
+      - {type: volume_ramp, anchor: G, from: 0, to_day: 4, to: 0.75}                       # ~25% dip within 5 days of go-live
+    label:
+      archetype: scripted
+      expected_line: save
+      expected_action: technician_booking
+      expected_escalation: false
+      is_fee_affected: true
+      notes: >
+        D0 Save (churn 80+, growth paused) -> technician booking + WhatsApp, agent alone.
+        D+3 field visit (device follow-up, before Diwali and G0) -> clip 1: loan interest,
+        prepayment, rival offer, "come after Diwali" -> Grow handoff.
+        G0..G+4 second Save case: cost estimate, waiver check, field visit planned.
+
+  M_DEMO_MEENA:
+    name: Meena Ladies Tailor & Boutique
+    owner_name: Meena Ramesh
+    category: tailor
+    zone_id: Z_B
+    pin_code: "560041"
+    language_pref: kn
+    onboard_months_before_start: 22
+    products: {qr: true, soundbox: true, pos: false}
+    soundbox_rent_month: 129
+    profile:
+      monthly_upi_value: 120000        # what she would do un-held
+      monthly_value_above_2000: 60000
+      avg_ticket_above_2000: 3200
+      avg_ticket_small: 900
+    events:
+      - {type: threshold_hold, months: all, hold_trigger: 90000, trigger_day: 23,
+         drop_after_trigger: 0.50, monthly_band: [88000, 98000]}   # every month, history and future
+    label:
+      archetype: scripted
+      expected_line: grow
+      expected_action: cost_comparison
+      expected_escalation: false
+      is_fee_affected: false                     # exempt because she holds back; that is the story
+      notes: >
+        Threshold holder. Honest cost comparison (capped small fee vs lost digital sales; recorded
+        sales are the history lenders assess). First loan draft must be blocked by the compliance
+        gate (eval/fixtures). Never promise loan eligibility.

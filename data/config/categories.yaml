@@ -1,0 +1,126 @@
+# Merchant categories (DATA_PREPARATION.md §5). All values are assumptions for plausibility.
+#
+# ticket / daily_upi_count: ranges read as 5th-95th percentile; per-merchant base drawn lognormal.
+# weekly: Mon..Sun multipliers (normalised to mean 1 at generation).
+# festive_lift: extra volume at festive_peak (ramps up from festive_start, decays to festive_end).
+# large_ticket: payments above 2,000.
+#   merchant_prob - share of merchants in the category that take such payments at all
+#   txn_share     - share of their daily txns above 2,000
+#   median        - median value of those payments (floored at 2,001)
+# This mixture is what makes the fee-affected share come out category-driven (~25-40%).
+# products: probability of having each device (QR is always true).
+# card_ratio: card txns per UPI txn, POS merchants only.
+
+categories:
+  kirana:
+    label: Kirana / general store
+    share: 0.25
+    shop_words: [General Stores, Kirana Store, Provision Store, Super Market]
+    ticket: [150, 450]
+    daily_upi_count: [60, 180]
+    weekly: [0.96, 0.96, 0.96, 0.96, 1.00, 1.06, 1.06]          # weekend +10%
+    festive_lift: 0.15
+    large_ticket: {merchant_prob: 0.25, txn_share: 0.02, median: 2600}
+    products: {soundbox: 0.75, pos: 0.05}
+    card_ratio: 0.08
+
+  chai:
+    label: Chai / snack stall
+    share: 0.12
+    shop_words: [Tea Stall, Chai Point, Snacks Corner, Bakery & Tea]
+    ticket: [20, 60]
+    daily_upi_count: [80, 250]
+    weekly: [1.05, 1.05, 1.05, 1.05, 1.05, 0.90, 0.85]          # weekday mornings strong
+    festive_lift: 0.05
+    large_ticket: {merchant_prob: 0.0, txn_share: 0.0, median: 0}
+    products: {soundbox: 0.70, pos: 0.0}
+    card_ratio: 0.0
+
+  fruit_veg:
+    label: Fruit / vegetable vendor
+    share: 0.12
+    shop_words: [Fruits, Vegetables, Fresh Mart, Fruit Stall]
+    ticket: [80, 250]
+    daily_upi_count: [40, 120]
+    weekly: [0.96, 0.96, 0.96, 0.96, 0.96, 1.10, 1.10]          # weekend +15%
+    festive_lift: 0.15
+    large_ticket: {merchant_prob: 0.05, txn_share: 0.01, median: 2300}
+    products: {soundbox: 0.25, pos: 0.0}
+    card_ratio: 0.0
+
+  pharmacy:
+    label: Pharmacy
+    share: 0.10
+    shop_words: [Medicals, Pharma, Chemists, Medical Store]
+    ticket: [250, 900]
+    daily_upi_count: [40, 120]
+    weekly: [1, 1, 1, 1, 1, 1, 1]                                # flat
+    festive_lift: 0.0
+    large_ticket: {merchant_prob: 0.50, txn_share: 0.04, median: 2800}
+    products: {soundbox: 0.80, pos: 0.60}
+    card_ratio: 0.25
+
+  restaurant:
+    label: Restaurant / food stall
+    share: 0.12
+    shop_words: [Restaurant, Darshini, Hotel, Biryani Point, Udupi Hotel]
+    ticket: [200, 700]
+    daily_upi_count: [40, 150]
+    weekly: [0.89, 0.89, 0.89, 0.89, 1.11, 1.11, 1.11]          # Fri-Sun +25%
+    festive_lift: 0.15
+    large_ticket: {merchant_prob: 0.35, txn_share: 0.03, median: 2600}
+    products: {soundbox: 0.75, pos: 0.50}
+    card_ratio: 0.30
+
+  salon:
+    label: Beauty salon
+    share: 0.08
+    shop_words: [Beauty Parlour, Unisex Salon, Hair Studio]
+    ticket: [300, 1500]
+    daily_upi_count: [10, 40]
+    weekly: [0.88, 0.88, 0.88, 0.88, 0.95, 1.25, 1.25]          # weekend +30%
+    festive_lift: 0.30
+    large_ticket: {merchant_prob: 0.50, txn_share: 0.08, median: 3200}
+    products: {soundbox: 0.60, pos: 0.10}
+    card_ratio: 0.15
+
+  tailor:
+    label: Tailor / boutique
+    share: 0.07
+    shop_words: [Tailors, Boutique, Ladies Tailor, Fashions]
+    ticket: [400, 2500]
+    daily_upi_count: [5, 25]
+    weekly: [1, 1, 1, 1, 1, 1.05, 0.95]
+    festive_lift: 0.45                                           # festive-heavy
+    large_ticket: {merchant_prob: 0.70, txn_share: 0.15, median: 3500}
+    products: {soundbox: 0.55, pos: 0.05}
+    card_ratio: 0.10
+
+  books:
+    label: Books / stationery
+    share: 0.06
+    shop_words: [Book House, Stationers, Book Depot]
+    ticket: [100, 600]
+    daily_upi_count: [15, 60]
+    weekly: [1.02, 1.02, 1.02, 1.02, 1.02, 1.0, 0.90]
+    festive_lift: 0.05
+    seasonal_bumps:                                              # school reopening after Dasara holidays (assumption)
+      - {start: 2026-07-07, end: 2026-07-15, mult: 1.15}
+      - {start: 2026-10-22, end: 2026-10-31, mult: 1.20}
+    large_ticket: {merchant_prob: 0.15, txn_share: 0.02, median: 2400}
+    products: {soundbox: 0.30, pos: 0.05}
+    card_ratio: 0.10
+
+  electronics:
+    label: Electronics / mobile shop
+    share: 0.08
+    shop_words: [Mobiles, Electronics, Mobile World, Digital Hub]
+    ticket: [800, 6000]
+    daily_upi_count: [8, 35]
+    weekly: [0.95, 0.95, 0.95, 0.95, 1.0, 1.10, 1.10]
+    festive_lift: 0.50                                           # festive-heavy
+    large_ticket: {merchant_prob: 0.95, txn_share: 0.35, median: 4500}
+    very_large_per_day_prob: 0.01                                # one payment > 75,000 (laptop/phone); fee capped at 300
+    very_large_value: [75000, 140000]
+    products: {soundbox: 0.70, pos: 0.80}
+    card_ratio: 0.45

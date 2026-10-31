@@ -93,7 +93,11 @@ Encode in `sim_config.yaml` under `fee_rules`, with a comment that these follow 
 | Exemption | Merchants with monthly UPI value under ₹1,00,000 |
 | Go-live | `fee_go_live_date` (parameter) |
 
-Derived fields to compute per merchant-month: `monthly_upi_value`, `value_above_2000`, `is_fee_affected`, `est_monthly_fee = min(0.4% × each txn above ₹2,000, ₹300)` summed. Because we store daily aggregates, approximate per-transaction cap using `value_above_2000 × 0.004` and apply the cap only if a single-transaction value above ₹75,000 is simulated (rare; electronics only). Document the approximation.
+Derived fields per merchant-month (table `merchant_fee_monthly`, §8.13): `monthly_upi_value`, `value_above_2000`, `is_fee_affected`, `est_monthly_fee = min(0.4% × each txn above ₹2,000, ₹300)` summed. Because we store daily aggregates, approximate per-transaction cap using `value_above_2000 × 0.004` and apply the cap only if a single-transaction value above ₹75,000 is simulated (rare; electronics only).
+
+**Definition:** `is_fee_affected = not exempt AND at least one payment above ₹2,000 in the month`. No separate materiality threshold. Each category has a share of merchants that take payments above ₹2,000 at all (`categories.yaml › large_ticket`), which is what makes the fee-affected share category-driven. Labels use the last full month before go-live (`reference_month`).
+
+The fee layer stays minimal: the fee is one event in the story, not the focus.
 
 ---
 
@@ -112,7 +116,7 @@ Each non-scripted merchant gets exactly one archetype. Proportions sum to 100%.
 | 7 | Low-active ("zombie") | 12% | 1–6 UPI txns/day, often QR only, irregular days | Grow | Activation ladder: Soundbox / usage nudge |
 | 8 | Closed shop | 4% | Zero txns for ≥ 14 days; device offline same period; no tickets | Neither (verify) | Remote check before any visit; mark inactive |
 | 9 | Charge complainer | 6% | Unnotified deduction (₹3,999–₹7,999 "maintenance" or similar) in settlements; complaint ticket within 1–5 days; mild volume dip after | Save | Charge explanation; refund/waiver check; escalate if angry |
-| 10 | Post-fee dropper | 6% | Fee-affected (monthly UPI ≥ ₹1L); healthy until go-live; drops 20–45% within 7 days after `fee_go_live_date` | Save | Personal cost estimate; waiver only if net positive; visit if high-value |
+| 10 | Post-fee dropper | 6% | Healthy until go-live; drops 20–45% within 7 days after `fee_go_live_date`. About two thirds are fee-affected (monthly UPI ≥ ₹1L, payments above ₹2,000); about one third are **exempt merchants dropping from confusion** | Save | Fee-affected: personal cost estimate; waiver only if net positive; visit if high-value. Exempt: one "you are not affected" message, agent alone |
 
 Onset dates: random within the history window for #3, #4, #5, #9 (some active near `sim_start_date` so cases are open at demo start); fixed relative to `fee_go_live_date` for #10. Keep ~30% of Save-archetype onsets in the future window so cases appear while the clock advances.
 
@@ -199,7 +203,7 @@ One row per merchant per day. Future table holds the 30 future days, released by
 |---|---|---|
 | deduction_id | text PK | |
 | merchant_id, settlement_id, date | | |
-| type | text | soundbox_rent / maintenance_charge / ups_fee / other |
+| type | text | soundbox_rent / maintenance_charge / upi_fee / other. `upi_fee`: daily, notified, from G0, on fee-affected merchants |
 | amount | numeric | |
 | notified | bool | False for archetype #9 trigger deduction |
 
@@ -233,6 +237,7 @@ Include occasional competitor mentions in #3 summaries ("other company offered f
 - `approvals` (approval_id, action_id, requested_at, decided_at, decision, decided_by)
 
 ### 8.11 Hidden: `merchant_labels` (evaluation only — never exposed via MCP)
+Loaded into a separate schema, `ax13_eval`, so MCP servers working in `ax13` cannot reach it.
 | Column | Type | Notes |
 |---|---|---|
 | merchant_id | text PK | |
@@ -245,7 +250,18 @@ Include occasional competitor mentions in #3 summaries ("other company offered f
 | notes | text | |
 
 ### 8.12 `sim_state`
-Single row: `current_date`, `fee_live` (bool). Updated by the clock.
+Single row: `sim_date`, `fee_live` (bool). Updated by the clock. (Named `sim_date`, not `current_date`: that is a Postgres keyword and would silently return the wall-clock date.)
+
+### 8.13 `merchant_fee_monthly` (derived)
+Completed calendar months fully inside the history window only. The current month is computed live by the MCP server from released `txn_daily` rows (no cap adjustment live; the cap is rare).
+
+| Column | Type | Notes |
+|---|---|---|
+| merchant_id, month | PK | month = first day of month |
+| monthly_upi_value | numeric | |
+| value_above_2000 | numeric | |
+| is_fee_affected | bool | §6 definition |
+| est_monthly_fee | numeric | 0 when not affected |
 
 ---
 
@@ -279,8 +295,9 @@ Define day-indexed events relative to `sim_start_date` (D0) and `fee_go_live_dat
 - History: D−21 → D0 UPI declines ~40%; Soundbox offline D−6 → D0 (`hardware_fault_flag`); complaint ticket at D−4, open ("Soundbox keeps disconnecting").
 - Expected at D0: Save, churn ≈ 80+, growth paused → technician booking + WhatsApp update (agent alone).
 - Future: device fixed D+1; volume recovers by D+7 with festive spike.
-- At G0: volume dips ~25% within 5 days → Save case: cost estimate, waiver check, field visit planned.
-- Visit recording (clip 1) carries loan interest + competitor mention + "come after Diwali" → Grow handoff.
+- At G0: volume dips ~25% within 5 days → second Save case: cost estimate, waiver check, field visit planned.
+- Field visit at D+3 (device follow-up after the fix, before Diwali and before G0): visit recording (clip 1) carries loan interest + prepayment question + competitor mention + "come after Diwali" → Grow handoff.
+- Sequence: D0 device Save → D+1 fixed → D+3 visit, clip 1, Grow handoff → D+5 Diwali → G0 fee dip, second Save case.
 
 **M_DEMO_MEENA — Meena, tailor/boutique (Grow)**
 - Tailor/boutique, Zone B, QR + Soundbox, Kannada/English, monthly UPI ₹88–98k across the last 3 months.
@@ -288,8 +305,8 @@ Define day-indexed events relative to `sim_start_date` (D0) and `fee_go_live_dat
 - Expected: Grow, honest cost comparison message. The agent's first loan draft must be blockable by the compliance gate (test fixture: a templated over-promising draft in `eval/fixtures/`).
 
 **Simulation clock**
-- MCP servers return only rows with `date <= sim_state.current_date` (history + released future days).
-- `advance_day()` increments `current_date`; sets `fee_live = true` once `current_date >= fee_go_live_date`.
+- MCP servers return only rows with `date <= sim_state.sim_date` (history + released future days).
+- `advance_day()` increments `sim_date`; sets `fee_live = true` once `sim_date >= fee_go_live_date`.
 - Streamlit control: "Advance 1 day", "Jump to fee go-live", "Reset".
 
 ---
@@ -374,14 +391,15 @@ Fail loudly if any check fails; print a summary report.
 - Archetype proportions within ±2 percentage points of config.
 - No negative counts or values; uptime within 0–100.
 - Consistency: Soundbox offline days → UPI count drop for Soundbox-dependent merchants; closed shops have zero txns over their window.
-- Fee: share of fee-affected merchants reported (expect roughly 25–40%, driven by categories); threshold holders' monthly UPI within ₹85k–₹99k.
+- Fee: share of fee-affected merchants reported (expect roughly 25–40%, driven by categories); threshold holders' monthly UPI within ₹85k–₹99k; threshold holders' post-trigger daily UPI at least 30% below their pre-trigger level in every completed month.
+- #10: fee-affected droppers are fee-affected in the reference month; exempt droppers are not.
 - #5 network-not-device: peak errors ≫ off-peak errors; `hardware_fault_flag` false.
 - #9 charge complainers: one unnotified deduction followed by a charge ticket within 5 days.
 - Scripted merchants: each scripted event present on the right day.
 - Labels: every merchant has exactly one label row; `merchant_labels` not referenced anywhere in `mcp_servers/` or `agent/` (grep check).
 - Determinism: two runs with the same seed produce identical file hashes.
 
-**Summary report** (`data/out/summary.md`): counts by zone, category, archetype; fee-affected count; open tickets at D0; three small charts (volume by archetype over time, fee-affected distribution, ticket categories).
+**Summary report** (`data/out/summary.md`): seed used; counts by zone, category, archetype; fee-affected count; open tickets at D0; three small charts (volume by archetype over time, fee-affected distribution, ticket categories).
 
 ---
 

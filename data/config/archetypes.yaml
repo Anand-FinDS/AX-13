@@ -1,0 +1,110 @@
+# Hidden behaviour patterns (DATA_PREPARATION.md §7). One per non-scripted merchant.
+# Shares sum to 1.0; counts use largest-remainder rounding over 197 merchants.
+# Day offsets: D = sim_start_date, G = fee_go_live_date (negative = before).
+#
+# onset: where the onset day is drawn.
+#   history_range  - day offsets relative to D for history onsets
+#   future_share   - share of onsets placed in the future window (spec: ~30% of Save onsets)
+#   future_range   - day offsets relative to D for future onsets
+#   recent_share   - share of history onsets in the last recent_days before D (cases open at demo start)
+# requires: products forced on, or categories restricted, for the pattern to make sense.
+# label: what the hidden merchant_labels row says.
+
+archetypes:
+  healthy_steady:
+    share: 0.30
+    params: {noise_sigma: 0.08, uptime_pct: [98.0, 100.0]}
+    label: {expected_line: none, expected_action: watchlist, expected_escalation: false}
+
+  festive_grower:
+    share: 0.12
+    params:
+      extra_lift_at_peak: [0.20, 0.45]   # on top of category festive lift
+      stays_elevated_share: 0.8          # of extra lift kept after festive_end
+    label: {expected_line: grow, expected_action: product_pitch, expected_escalation: false}
+    # expected_action becomes loan_pitch (escalation true, RM approval) when history >= 90 steady days
+    # and merchant already has a Soundbox; otherwise next device on the ladder.
+
+  slow_decliner:
+    share: 0.10
+    params:
+      decline: [0.25, 0.50]
+      decline_weeks: [3, 6]
+      competitor_note_prob: 0.5          # competitor mention in a ticket summary
+    onset: {history_range: [-60, -10], recent_share: 0.4, recent_days: 21, future_share: 0.3, future_range: [1, 15]}
+    label: {expected_line: save, expected_action: retention_visit, expected_escalation: false}
+
+  device_fault:
+    share: 0.08
+    requires: {soundbox: true}
+    params:
+      drop: [0.50, 0.90]
+      offline_days: [3, 10]
+      ticket_lag_days: [1, 3]
+    onset: {history_range: [-100, 0], recent_share: 0.4, recent_days: 10, future_share: 0.3, future_range: [1, 25]}
+    label: {expected_line: save, expected_action: technician_booking, expected_escalation: false}
+    # Faults fully over before D0 get expected_line none (recovered); label notes record it.
+
+  network_not_device:
+    share: 0.06
+    requires: {soundbox: true}
+    params:
+      peak_dip: [0.10, 0.20]             # volume dip on peak-hour share only
+      peak_errors_lambda: [8, 20]
+      offpeak_errors_lambda: 0.5
+      peak_failed_rate: [0.04, 0.08]
+      peak_failed_debited_share: [0.15, 0.30]
+    onset: {history_range: [-45, -5], recent_share: 0.5, recent_days: 14, future_share: 0.3, future_range: [1, 20]}
+    label: {expected_line: save, expected_action: network_guidance, expected_escalation: false}
+
+  threshold_holder:
+    share: 0.06
+    categories: [tailor, salon, pharmacy, books, restaurant, electronics]  # need large tickets to be worth avoiding
+    requires: {large_ticket: true}
+    params:
+      monthly_target: [85000, 99000]     # complete months land in this band
+      hold_trigger: [86000, 92000]       # month-to-date UPI at which holding starts
+      trigger_day: [21, 26]              # crossing day lands in the last third of the month
+      drop_after_trigger: [0.30, 0.60]   # further capped so the month stays <= monthly_target max
+    label: {expected_line: grow, expected_action: cost_comparison, expected_escalation: false}
+
+  low_active:
+    share: 0.12
+    params:
+      daily_upi_count: [1, 6]
+      active_day_prob: [0.4, 0.8]        # irregular days
+      soundbox_prob: 0.3                 # often QR only
+    label: {expected_line: grow, expected_action: activation_nudge, expected_escalation: false}
+
+  closed_shop:
+    share: 0.04
+    params:
+      closed_days_before_d0: [14, 40]    # zero txns from onset through the future window
+    label: {expected_line: none, expected_action: remote_verification, expected_escalation: false}
+
+  charge_complainer:
+    share: 0.06
+    requires: {soundbox: true}
+    params:
+      charge_amount: [3999, 7999]
+      charge_type: maintenance_charge
+      ticket_lag_days: [1, 5]
+      post_dip: [0.05, 0.15]
+      angry_prob: 0.4                    # angry -> expected_escalation true
+    onset: {history_range: [-45, -1], recent_share: 0.4, recent_days: 14, future_share: 0.3, future_range: [1, 20]}
+    label: {expected_line: save, expected_action: charge_explanation, expected_escalation: false}
+
+  post_fee_dropper:
+    share: 0.06
+    categories: [kirana, pharmacy, restaurant, salon, tailor, electronics]
+    params:
+      drop: [0.20, 0.45]
+      onset_after_go_live_days: [0, 6]
+      ramp_days: 3
+      exempt_share: 0.33                 # exempt merchants dropping from confusion
+      affected_min_monthly_upi: 120000   # fee-affected ones: forced large payments, volume floor
+      exempt_monthly_upi: [40000, 75000] # exempt ones: volume set well under the exemption
+    label: {expected_line: save, expected_action: fee_cost_estimate, expected_escalation: false}
+    label_exempt: {expected_line: save, expected_action: not_affected_message, expected_escalation: false}
+    # Fee-affected: expected_escalation true when merchant_value_tier == high.
+    # Exempt: one 'you are not affected' message, agent alone.
