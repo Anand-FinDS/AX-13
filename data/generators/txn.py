@@ -45,9 +45,9 @@ def generate_txn(plan: Plan, cal: Calendar, cfg: dict, seed: int) -> tuple[pd.Da
         peak = np.where(net, peak * (1 - dip) / (1 - dip * peak), peak)
 
     if plan.scripted:
-        # Scripted merchants: deterministic counts so the story reads cleanly; fractional
-        # large payments carried forward day to day.
-        count = np.rint(lam).astype(int)
+        # Scripted merchants: low-variance counts (seeded stochastic rounding keeps the mean)
+        # so the story reads cleanly; fractional large payments carried forward day to day.
+        count = np.floor(lam + r.random(n)).astype(int)
         c_large = np.minimum(np.diff(np.floor(np.cumsum(count * plan.large_share) + 0.5), prepend=0).astype(int), count)
     else:
         count = r.poisson(lam)
@@ -104,17 +104,15 @@ def generate_txn(plan: Plan, cal: Calendar, cfg: dict, seed: int) -> tuple[pd.Da
 
 
 def _scale_day(a: dict, i: int, s: float) -> None:
-    """Scale one day's payments by s: values exactly, counts rounded, keeping tickets consistent."""
-    cs, cl = np.rint(a["c_small"][i] * s), np.rint(a["c_large"][i] * s)
+    """Scale one day's payments by s. Total value is preserved exactly; counts are rounded and
+    kept consistent with tickets (large payments >= 2,001 each, small ones < 2,000)."""
     vs, vl = a["v_small"][i] * s, a["v_large"][i] * s
-    if cl > 0 and vl < LARGE_FLOOR * cl:
-        cl = np.floor(vl / LARGE_FLOOR)
-    if cl == 0:
-        vl = 0.0
-    if cs == 0:
-        cs, vs = (1.0, vs) if vs >= 10 else (0.0, 0.0)
-    if cs > 0 and vs / cs >= 2000:
-        cs = np.ceil(vs / 1999)
+    if vl >= LARGE_FLOOR:
+        cl = min(max(np.rint(a["c_large"][i] * s), 1.0), np.floor(vl / LARGE_FLOOR))
+    else:
+        cl, vs, vl = 0.0, vs + vl, 0.0   # a large payment scaled under 2,001 now counts as small
+    cs = max(np.rint(a["c_small"][i] * s), np.ceil(vs / 1999)) if vs >= 1 else 0.0
+    vs = vs if cs > 0 else 0.0
     a["c_small"][i], a["c_large"][i], a["v_small"][i], a["v_large"][i] = cs, cl, vs, vl
 
 
@@ -123,23 +121,22 @@ def _apply_hold(a: dict, plan: Plan, cal: Calendar, r: np.random.Generator) -> d
     and the month is kept under its target (inside the band)."""
     h = plan.hold
     val = lambda i: a["v_small"][i] + a["v_large"][i]
-    segs = cal.month_segments()
-    scales = {}
-    if h.get("trigger_day"):
-        for key, idx, complete in segs:
-            pre = sum(val(i) for i in idx[: h["trigger_day"]])
-            if complete and pre > 0:
-                scales[key] = max(h["trigger"] / pre, 1.0)   # only scale up: exact, no lost payments
-    default = float(np.mean(list(scales.values()))) if scales else 1.0
-
     info = {}
-    for key, idx, complete in segs:
+    for key, idx, complete in cal.month_segments():
         if h["months"] != "all" and key not in h["months"]:
             continue
-        s0 = scales.get(key, default)
         lo, hi = h["band"]
         target = float(r.uniform(max(lo, h["trigger"] + 2000), hi))
         drop = float(r.uniform(*h["drop"]))
+        # Crossing day k: the earliest day that leaves room for the remaining days at (1 - drop)
+        # of the pre-trigger pace without breaking the target, i.e.
+        # trigger * (1 + (L - k)(1 - drop) / k) <= target. Earlier crossings force a month-end blackout.
+        days_in_month = cal.dates[idx[0]].days_in_month
+        k = math.ceil(days_in_month * (1 - drop) / (target / h["trigger"] - 1 + (1 - drop)))
+        k = min(max(k, 20), days_in_month - 2)
+        pre_sum = sum(val(i) for i in idx[cal.dates[idx].day <= k])
+        # Small jitter so month-to-date never lands on exactly the trigger amount.
+        s0 = h["trigger"] / pre_sum * float(r.uniform(1.0, 1.03)) if pre_sum > 0 else 1.0
         raw = {i: val(i) for i in idx}
         mtd, pre_vals, crossed = 0.0, [], None
         for j, i in enumerate(idx):

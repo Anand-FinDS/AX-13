@@ -82,12 +82,12 @@ merchants:
     products: {qr: true, soundbox: true, pos: false}
     soundbox_rent_month: 129
     profile:
-      monthly_upi_value: 120000        # what she would do un-held
-      monthly_value_above_2000: 60000
+      monthly_upi_value: 100000        # un-held pace (hold scales each month to cross 90k ~day 28)
+      monthly_value_above_2000: 50000
       avg_ticket_above_2000: 3200
       avg_ticket_small: 900
     events:
-      - {type: threshold_hold, months: all, hold_trigger: 90000, trigger_day: 23,
+      - {type: threshold_hold, months: all, hold_trigger: 90000,
          drop_after_trigger: 0.50, monthly_band: [88000, 98000]}   # every month, history and future
     label:
       archetype: scripted

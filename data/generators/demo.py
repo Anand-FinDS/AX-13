@@ -58,7 +58,6 @@ def _plan(mid: str, spec: dict, cal: Calendar) -> Plan:
                                 "channel": ev["channel"], "response": ev["response"]})
         elif t == "threshold_hold":
             plan.hold = {"months": ev["months"], "trigger": float(ev["hold_trigger"]),
-                         "trigger_day": ev.get("trigger_day"),
                          "drop": [ev["drop_after_trigger"]] * 2, "band": list(ev["monthly_band"])}
             plan.params = {"hold_trigger": float(ev["hold_trigger"])}
         else:

@@ -350,6 +350,20 @@ Write in plain English, in Anand's voice, with **numbered sections** so RAG cita
 
 ## 12. Voice data (`audio/`)
 
+> **Status (decided 31 Oct 2026): audio recording is deferred.** Phase 0 ships the three ground-truth transcripts as text (`audio/clip*.truth.json`), written as realistic Hindi/Kannada-English dialogue (Indian-language words in Roman script) containing every planted line. VoiceCore runs on these text transcripts first (extraction, CRM write-back, new signals). ASR and diarisation are added later, when the clips are recorded against the same scripts; the truth files then double as the reference for ASR/diarisation accuracy, with timestamps corrected after recording.
+
+| Clip file | Merchant | Date | Channel |
+|---|---|---|---|
+| `clip1_ravi.truth.json` | M_DEMO_RAVI | D+3 (3 Nov), device follow-up visit | field_visit |
+| `clip2_charge.truth.json` | M0082 (generated charge complainer: unnotified ₹3,999 on 14 Oct, ticket T00079) | D−1 (30 Oct) | support_call |
+| `clip3_meena.truth.json` | M_DEMO_MEENA | D+4 (4 Nov) | field_visit |
+
+Clip 2 points at a generated merchant, so `validate.py` checks that each transcript's merchant, deduction and ticket facts still match the data; a seed or config change that breaks this fails validation.
+
+Truth-file fields beyond the format below: `date`, `channel`, `context`, `language`, `source`, `duration_s`, `consent` (turn indices), and in `expected_extractions`: `service_status`, `sentiment`, `entities`, `expected_escalation`, `planted_lines` (turn index per planted line).
+
+The original recording plan follows, kept for when audio resumes.
+
 **Clips to record (role-play with a friend, phone recording is fine)**
 
 | Clip | Merchant | Language | Length | Planted lines (must be extractable) |
@@ -396,6 +410,7 @@ Fail loudly if any check fails; print a summary report.
 - #5 network-not-device: peak errors ≫ off-peak errors; `hardware_fault_flag` false.
 - #9 charge complainers: one unnotified deduction followed by a charge ticket within 5 days.
 - Scripted merchants: each scripted event present on the right day.
+- Voice: each `audio/*.truth.json` names a real merchant, and its deduction/ticket entities match the data.
 - Labels: every merchant has exactly one label row; `merchant_labels` not referenced anywhere in `mcp_servers/` or `agent/` (grep check).
 - Determinism: two runs with the same seed produce identical file hashes.
 
@@ -409,8 +424,8 @@ Fail loudly if any check fails; print a summary report.
 - `python -m data.load_postgres` loads all tables into schema `ax13` via docker-compose Postgres (`infra/docker-compose.yml`), reading connection details from `.env` through `common/settings.py`.
 - Summary report reviewed by Anand.
 - Four docs drafted with numbered sections.
-- Three audio clips recorded with ground-truth JSON.
-- Demo merchants verified by printing their 150-day timelines.
+- Three ground-truth transcripts written as text (`audio/*.truth.json`); audio recording deferred (§12).
+- Demo merchants verified by printing their 150-day timelines (`python -m data.timelines` → `data/out/demo_timelines.md`).
 
 ---
 

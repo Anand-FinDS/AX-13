@@ -1,0 +1,43 @@
+{
+  "clip_id": "clip3_meena",
+  "merchant_id": "M_DEMO_MEENA",
+  "date": "2026-11-04",
+  "channel": "field_visit",
+  "context": "Grow-line visit. Threshold holder: stops taking UPI at month-end to stay under 1 lakh.",
+  "language": "kn-en",
+  "source": "scripted text transcript (audio deferred; Kannada in Roman script)",
+  "duration_s": 81.0,
+  "consent": {"asked_turn": 0, "given_turn": 1, "given": true},
+  "speakers": {"A": "field_agent", "B": "merchant"},
+  "turns": [
+    {"speaker": "A", "start": 0.0, "end": 6.0, "text": "Namaskara Meena avare. Ee visit service quality ge record aagtide, parvagilla tane?"},
+    {"speaker": "B", "start": 6.3, "end": 7.5, "text": "Haudu, parvagilla."},
+    {"speaker": "A", "start": 7.8, "end": 13.0, "text": "Business hegide? Festive orders jaasti idya?"},
+    {"speaker": "B", "start": 13.3, "end": 25.0, "text": "Orders chennagi ide. Blouse stitching, lehenga alterations, ella. Naanu shop expand maadbeku antha idini, innondu machine, ondu helper."},
+    {"speaker": "A", "start": 25.3, "end": 31.0, "text": "Super. Neevu UPI alli payments tagotira alva, aadre month-end alli kammi kaanstide."},
+    {"speaker": "B", "start": 31.3, "end": 46.0, "text": "Haudu, last week of the month naanu UPI tagolla, cash maatra. Kelavaru helidru one lakh daati hodre fee barutte antha. Adakke month-end alli QR tegedidtini."},
+    {"speaker": "A", "start": 46.3, "end": 52.0, "text": "Okay. Adu poorti correct alla. Fee ella payment ge barolla."},
+    {"speaker": "B", "start": 52.3, "end": 62.0, "text": "Haudaa? Hagadre actual aagi nange eshtu fee barutte? Month ge eshtu cut aagutte?"},
+    {"speaker": "A", "start": 62.3, "end": 72.0, "text": "Nimma sales numbers inda exact amount lekka maadi kalistini. Cash alli tagondre aa sales nimma digital record alli barolla, adu kooda nodi."},
+    {"speaker": "B", "start": 72.3, "end": 78.0, "text": "Sari, numbers kalisi, nodtini."},
+    {"speaker": "A", "start": 78.3, "end": 81.0, "text": "Khandita, naale WhatsApp alli kalistini."}
+  ],
+  "expected_extractions": {
+    "service_status": [],
+    "intents": ["growth_interest"],
+    "questions": ["fee_cost"],
+    "objections": ["avoids_upi_near_threshold"],
+    "complaints": [],
+    "commitments": [
+      {"type": "send_info", "what": "fee_cost_comparison", "when": "next_day", "channel": "whatsapp", "by": "field_agent"}
+    ],
+    "sentiment": "calm",
+    "entities": {"growth_plan": "second machine and a helper", "avoidance_window": "last week of month"},
+    "expected_escalation": false,
+    "planted_lines": {
+      "growth_interest": 3,
+      "avoids_upi_month_end": 5,
+      "fee_cost_question": 7
+    }
+  }
+}

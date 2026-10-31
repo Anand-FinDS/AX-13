@@ -218,13 +218,10 @@ def _apply_archetype(plan: Plan, a: dict, flag: str, cfg: dict, cal: Calendar, s
     elif arch == "threshold_holder":
         plan.very_large_prob = 0.0
         trigger = float(r.uniform(*pr["hold_trigger"]))
-        trigger_day = int(r.integers(pr["trigger_day"][0], pr["trigger_day"][1] + 1))
-        plan.hold = {"months": "all", "trigger": trigger, "trigger_day": trigger_day,
+        plan.hold = {"months": "all", "trigger": trigger,
                      "drop": list(pr["drop_after_trigger"]), "band": list(pr["monthly_target"])}
-        # Base volume set slightly low (natural crossing ~3 days late); the hold only scales up
-        # before the trigger, which is exact, while scaling down can drop whole large payments.
-        plan.base_count = 1.0
-        plan.base_count = trigger / (trigger_day + 3) * 30 / plan.expected_monthly_value()
+        # Un-held pace ~ trigger per month; the hold rescales each month around it.
+        plan.base_count *= trigger / plan.expected_monthly_value()
         plan.params = {"hold_trigger": round(trigger, 2)}
 
     elif arch == "low_active":

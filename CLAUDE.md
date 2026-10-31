@@ -132,7 +132,7 @@ Pitch line: *"S1-Scout told a sales team who to call. AX-13 makes the call, fixe
 4. Scoring in code with cited evidence.
 5. Playbook/catalogue RAG with section citations.
 6. Compliance gate + human-approval interrupt.
-7. VoiceCore on 2–3 recorded visit clips, writing back to CRM.
+7. VoiceCore on 2–3 visit/call transcripts (text first; recorded audio + ASR deferred, see DATA_PREPARATION.md §12), writing back to CRM.
 8. Streamlit screens + simulation clock.
 9. OTel traces into Grafana; one eval table (scoring precision/recall, gate catch rate, extraction accuracy).
 
@@ -146,7 +146,7 @@ Pitch line: *"S1-Scout told a sales team who to call. AX-13 makes the call, fixe
 
 | Phase | Output | Done when |
 |---|---|---|
-| 0. Data | Generator, configs, Postgres load, docs, voice clips | Validation report passes; demo merchants behave as scripted |
+| 0. Data | Generator, configs, Postgres load, docs, voice ground-truth transcripts (audio deferred) | Validation report passes; demo merchants behave as scripted |
 | 1. Tools | Mock MCP servers (read + write) respecting the simulation date | Agent can fetch merchant view and perform each action via MCP |
 | 2. Score + Map | Scoring with evidence; RAG with citations | Precision/recall vs hidden labels reported |
 | 3. Act + gates | Router, actions, escalation gate, compliance gate, HITL interrupt | Bad loan draft blocked; RM approval pauses and resumes graph |

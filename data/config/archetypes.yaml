@@ -64,8 +64,9 @@ archetypes:
     params:
       monthly_target: [85000, 99000]     # complete months land in this band
       hold_trigger: [86000, 92000]       # month-to-date UPI at which holding starts
-      trigger_day: [21, 26]              # crossing day lands in the last third of the month
-      drop_after_trigger: [0.30, 0.60]   # further capped so the month stays <= monthly_target max
+      drop_after_trigger: [0.30, 0.60]
+      # Crossing day is derived per month so trigger + remaining days at (1 - drop) lands inside
+      # the band: with these numbers that is day ~27-29. Earlier crossings would force a blackout.
     label: {expected_line: grow, expected_action: cost_comparison, expected_escalation: false}
 
   low_active:

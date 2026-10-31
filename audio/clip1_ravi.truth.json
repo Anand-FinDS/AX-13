@@ -1,0 +1,50 @@
+{
+  "clip_id": "clip1_ravi",
+  "merchant_id": "M_DEMO_RAVI",
+  "date": "2026-11-03",
+  "channel": "field_visit",
+  "context": "D+3 device follow-up after the Soundbox swap; before Diwali and before fee go-live.",
+  "language": "hi-en",
+  "source": "scripted text transcript (audio deferred; Hindi in Roman script)",
+  "duration_s": 100.0,
+  "consent": {"asked_turn": 0, "given_turn": 1, "given": true},
+  "speakers": {"A": "field_agent", "B": "merchant"},
+  "turns": [
+    {"speaker": "A", "start": 0.0, "end": 6.5, "text": "Namaste Ravi ji. Ye visit service quality ke liye record ho rahi hai, theek hai?"},
+    {"speaker": "B", "start": 6.8, "end": 8.0, "text": "Haan, theek hai."},
+    {"speaker": "A", "start": 8.3, "end": 14.0, "text": "Soundbox ka kya haal hai? Technician parso aaya tha na?"},
+    {"speaker": "B", "start": 14.2, "end": 22.5, "text": "Haan, naya device laga diya. Ab sab theek chal raha hai, har payment announce ho raha hai."},
+    {"speaker": "A", "start": 22.8, "end": 27.0, "text": "Accha. Diwali ka rush kaisa chal raha hai?"},
+    {"speaker": "B", "start": 27.3, "end": 40.0, "text": "Rush toh hai, lekin festive stock ke liye paisa kam pad raha hai. Kya mujhe stock ke liye loan mil sakta hai? Do-teen lakh chahiye tha."},
+    {"speaker": "A", "start": 40.3, "end": 50.0, "text": "Loan partner lender dete hain, eligibility wahi decide karte hain. Main aapki request RM ko bhej deta hoon, wo poori details aur charges batayenge."},
+    {"speaker": "B", "start": 50.3, "end": 58.0, "text": "Theek hai. Aur agar beech mein paisa aa jaye toh jaldi chuka sakte hain? Prepayment pe koi penalty toh nahi lagegi?"},
+    {"speaker": "A", "start": 58.3, "end": 64.0, "text": "Ye lender ki terms pe depend karta hai. RM aapko KFS mein sab likhit mein dikhayenge."},
+    {"speaker": "B", "start": 64.3, "end": 76.0, "text": "Ek baat aur. Doosri company wale aaye the, bol rahe the unka charge kam hai, aur machine bhi free denge. Socha aapko bata doon."},
+    {"speaker": "A", "start": 76.3, "end": 83.0, "text": "Samajh gaya, ye main note kar raha hoon. Aapke actual charges ka hisaab bhi main bhijwa deta hoon."},
+    {"speaker": "B", "start": 83.3, "end": 92.0, "text": "Abhi bahut busy hoon bhai. Diwali ke baad aana, aaram se baat karenge."},
+    {"speaker": "A", "start": 92.3, "end": 98.0, "text": "Bilkul, Diwali ke baad aata hoon. Happy Diwali, Ravi ji."},
+    {"speaker": "B", "start": 98.2, "end": 100.0, "text": "Happy Diwali."}
+  ],
+  "expected_extractions": {
+    "service_status": ["device_working"],
+    "intents": ["loan_interest"],
+    "questions": ["prepayment"],
+    "objections": ["competitor_lower_fee"],
+    "complaints": [],
+    "commitments": [
+      {"type": "follow_up", "when": "after_diwali", "by": "field_agent"},
+      {"type": "rm_handoff", "what": "loan_details", "by": "field_agent"},
+      {"type": "send_info", "what": "fee_cost_estimate", "by": "field_agent"}
+    ],
+    "sentiment": "calm",
+    "entities": {"loan_amount_mentioned": "2-3 lakh", "loan_purpose": "festive_stock"},
+    "expected_escalation": false,
+    "planted_lines": {
+      "device_working": 3,
+      "loan_interest": 5,
+      "prepayment": 7,
+      "competitor_lower_fee": 9,
+      "after_diwali": 11
+    }
+  }
+}

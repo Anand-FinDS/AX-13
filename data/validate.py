@@ -219,6 +219,23 @@ def run_checks(t: dict[str, pd.DataFrame], cfg: dict, cal: Calendar, gp: dict, o
           and ms.loc["M_DEMO_MEENA", "zone_id"] == "Z_B",
           ", ".join(f"{v:,.0f}" for v in meena["monthly_upi_value"]))
 
+    # ---- voice ground truth (audio/*.truth.json) must match the data it describes ----
+    bad_clips = []
+    clips = sorted((REPO_ROOT / "audio").glob("*.truth.json"))
+    for p in clips:
+        clip = json.loads(p.read_text(encoding="utf-8"))
+        ent = clip["expected_extractions"].get("entities", {})
+        ok = clip["merchant_id"] in set(m["merchant_id"])
+        if "deduction_amount" in ent:
+            ok &= ((ded["merchant_id"] == clip["merchant_id"]) & ~ded["notified"] & (ded["amount"] == ent["deduction_amount"])
+                   & (pd.to_datetime(ded["date"]) == _d(ent["deduction_date"]))).any()
+        if "ticket_id" in ent:
+            ok &= ((tk["ticket_id"] == ent["ticket_id"]) & (tk["merchant_id"] == clip["merchant_id"])).any()
+        if not ok:
+            bad_clips.append(p.name)
+    c.add("voice transcripts: merchant, deduction and ticket facts match the data", not bad_clips,
+          f"{len(clips)} clips" + (f"; mismatched {bad_clips}" if bad_clips else ""))
+
     # ---- labels ----
     c.add("labels: exactly one row per merchant",
           lab["merchant_id"].is_unique and set(lab["merchant_id"]) == set(m["merchant_id"]))

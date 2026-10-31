@@ -1,0 +1,44 @@
+{
+  "clip_id": "clip2_charge",
+  "merchant_id": "M0082",
+  "date": "2026-10-30",
+  "channel": "support_call",
+  "context": "Charge complainer's follow-up call. Unnotified Rs 3,999 maintenance charge on the 14 Oct settlement; ticket T00079 opened 19 Oct, still in progress.",
+  "language": "kn-en",
+  "source": "scripted text transcript (audio deferred; Kannada in Roman script)",
+  "duration_s": 75.0,
+  "consent": {"asked_turn": 0, "given_turn": 1, "given": true},
+  "speakers": {"A": "support_agent", "B": "merchant"},
+  "turns": [
+    {"speaker": "A", "start": 0.0, "end": 6.0, "text": "Good afternoon. This call is being recorded for service quality. Is that okay with you?"},
+    {"speaker": "B", "start": 6.3, "end": 7.5, "text": "Haan, okay, fine."},
+    {"speaker": "A", "start": 7.8, "end": 11.0, "text": "How can I help you today?"},
+    {"speaker": "B", "start": 11.3, "end": 24.0, "text": "Nodi, nimma kade inda 3,999 rupees cut maadidira, fourteenth settlement alli. No SMS, no message, yaavdu maahiti illa. What is this charge?"},
+    {"speaker": "A", "start": 24.3, "end": 31.0, "text": "I'm sorry about that. I can see a maintenance charge on that settlement. Let me check the details."},
+    {"speaker": "B", "start": 31.3, "end": 44.0, "text": "Already ten days aaytu complaint kottu. Yaaru call maadilla. Idu sariyalla. I want my money back, full refund."},
+    {"speaker": "A", "start": 44.3, "end": 52.0, "text": "I understand. Your complaint is still open. I will escalate it today and someone senior will call you."},
+    {"speaker": "B", "start": 52.3, "end": 64.0, "text": "Escalate gikalate beda. If this money doesn't come back this week, naanu bere company ge switch maadteeni. Avru free machine kodtaare."},
+    {"speaker": "A", "start": 64.3, "end": 72.0, "text": "Noted. I'm marking it urgent. You will get a call back by tomorrow evening."},
+    {"speaker": "B", "start": 72.3, "end": 75.0, "text": "Nodona. Bye."}
+  ],
+  "expected_extractions": {
+    "service_status": [],
+    "intents": ["refund_request"],
+    "questions": ["charge_reason"],
+    "objections": ["switch_to_competitor"],
+    "complaints": ["unexplained_deduction", "no_callback_on_open_ticket"],
+    "commitments": [
+      {"type": "callback", "when": "next_day_evening", "by": "support_agent"},
+      {"type": "escalate", "when": "same_day", "by": "support_agent"}
+    ],
+    "sentiment": "angry",
+    "entities": {"deduction_amount": 3999, "deduction_date": "2026-10-14", "ticket_id": "T00079"},
+    "expected_escalation": true,
+    "planted_lines": {
+      "unexplained_deduction": 3,
+      "angry_tone": 5,
+      "refund_request": 5,
+      "switch_threat": 7
+    }
+  }
+}
