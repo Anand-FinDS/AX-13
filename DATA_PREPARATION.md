@@ -307,7 +307,8 @@ Define day-indexed events relative to `sim_start_date` (D0) and `fee_go_live_dat
 **Simulation clock**
 - MCP servers return only rows with `date <= sim_state.sim_date` (history + released future days).
 - `advance_day()` increments `sim_date`; sets `fee_live = true` once `sim_date >= fee_go_live_date`.
-- Streamlit control: "Advance 1 day", "Jump to fee go-live", "Reset".
+- Streamlit control: "Advance 1 day", "Jump to fee go-live", "Reset". These are human-only and live in `app/admin.py` (main login), not in MCP; the `sim_clock` MCP server only reads the state. Reset reloads all tables from `data/out/` and clears the LangGraph checkpointer threads.
+- The database enforces the cut: the MCP role reads time-dependent tables only through `v_*` views filtered on `sim_state.sim_date`; a month counts as complete in `v_merchant_fee_monthly` once its last day is on or before `sim_date`.
 
 ---
 

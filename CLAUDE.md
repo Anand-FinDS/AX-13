@@ -18,7 +18,7 @@
 **Working rules for this repo**
 - Python 3.11+. Deterministic outputs (fixed seeds). Everything runs offline on a laptop except LLM API calls.
 - Never put real merchant data or real personal data in the repo. All data is synthetic.
-- AX-13 code must only reach merchant data through the MCP servers (`mcp_servers/`), never by querying Postgres directly. Only `mcp_servers/` and `data/load_postgres.py` may open a Postgres connection to schema `ax13` (the LangGraph checkpointer uses its own schema). This is what makes "swap mock for real" true.
+- AX-13 code must only reach merchant data through the MCP servers (`mcp_servers/`), never by querying Postgres directly. Only three places may open a Postgres connection to schema `ax13`: `mcp_servers/` (as the restricted `POSTGRES_MCP_USER` role: reads through `sim_date`-filtered `v_*` views, no access to `ax13_eval`, cannot decide approvals or move the clock), `data/load_postgres.py`, and `app/admin.py` (human-only actions: RM approval decisions and the simulation clock, main login, called by Streamlit and never exposed as MCP tools). The LangGraph checkpointer uses its own schema, `ax13_graph`. This is what makes "swap mock for real" true.
 - All configuration (keys, endpoints, model ids) is read through `common/settings.py` from `.env`. No key or model id is hard-coded anywhere else.
 - Hidden ground-truth labels are for evaluation only and must never be exposed through MCP tools or prompts.
 
@@ -266,4 +266,4 @@ Every folder with Python code is a package (`__init__.py`), so modules run as `p
 - Demo laptop installs from a frozen `requirements.lock`.
 - Open item: confirm in AgntID docs whether it needs an account/key and can gate MCP tool calls.
 
-**Current phase: 0 — Data.** See DATA_PREPARATION.md.
+**Current phase: 1 — Tools (mock MCP servers).** Phase 0 complete; see DATA_PREPARATION.md.

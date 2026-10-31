@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     postgres_user: str = "ax13"
     postgres_password: SecretStr = SecretStr("")
     postgres_schema: str = "ax13"
+    postgres_eval_schema: str = "ax13_eval"        # hidden labels; the MCP role has no access
+    postgres_checkpoint_schema: str = "ax13_graph"  # LangGraph checkpointer threads
+    # Login used only by mcp_servers/: read/write on ax13, nothing on ax13_eval.
+    postgres_mcp_user: str = "ax13_mcp"
+    postgres_mcp_password: SecretStr = SecretStr("")
 
     # ---- Qdrant ----
     qdrant_url: str = "http://localhost:6333"
@@ -79,6 +84,18 @@ class Settings(BaseSettings):
         """libpq DSN for psycopg."""
         return (f"host={self.postgres_host} port={self.postgres_port} dbname={self.postgres_db} "
                 f"user={self.postgres_user} password={self.postgres_password.get_secret_value()}")
+
+    @property
+    def postgres_mcp_dsn(self) -> str:
+        """libpq DSN for the MCP servers' restricted role, search_path pinned to ax13."""
+        return (f"host={self.postgres_host} port={self.postgres_port} dbname={self.postgres_db} "
+                f"user={self.postgres_mcp_user} password={self.postgres_mcp_password.get_secret_value()} "
+                f"options='-c search_path={self.postgres_schema}'")
+
+    @property
+    def postgres_checkpoint_dsn(self) -> str:
+        """Main login with search_path on the LangGraph checkpointer schema."""
+        return f"{self.postgres_dsn} options='-c search_path={self.postgres_checkpoint_schema}'"
 
     @property
     def postgres_url(self) -> str:

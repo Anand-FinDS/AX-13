@@ -8,7 +8,12 @@ checkpointer's) are not touched.
 
 Schemas:
     ax13       - everything MCP servers serve, plus the runtime tables AX-13 writes to
-    ax13_eval  - hidden ground truth (merchant_labels). MCP servers never connect here.
+    ax13_eval  - hidden ground truth (merchant_labels). The MCP role has no access.
+
+The MCP servers log in as a restricted role (POSTGRES_MCP_USER). It reads time-dependent data
+only through v_* views filtered on sim_state.sim_date, so unreleased future rows are invisible
+to it at the database level. It cannot decide approvals or move the clock: those are human-only
+actions in app/admin.py, which uses the main login.
 """
 from __future__ import annotations
 
@@ -19,10 +24,11 @@ from pathlib import Path
 
 import psycopg
 import pyarrow.parquet as pq
+from psycopg import sql
 
 from common.settings import get_settings
 
-EVAL_SCHEMA = "ax13_eval"
+EVAL_SCHEMA = get_settings().postgres_eval_schema
 
 # (table, DDL body). Order = creation order; FKs point backwards only.
 TABLES: list[tuple[str, str]] = [
@@ -115,7 +121,7 @@ TABLES: list[tuple[str, str]] = [
         date         date NOT NULL,
         product      text NOT NULL CHECK (product IN ('soundbox','pos','loan','insurance','plan_change')),
         channel      text NOT NULL CHECK (channel IN ('app','whatsapp','field')),
-        response     text NOT NULL CHECK (response IN ('accepted','declined','no_response'))"""),
+        response     text NOT NULL CHECK (response IN ('accepted','declined','no_response','pending'))"""),
     ("merchant_fee_monthly", """
         merchant_id        text NOT NULL REFERENCES {s}.merchants,
         month              date NOT NULL,
@@ -139,6 +145,8 @@ RUNTIME_TABLES: list[tuple[str, str]] = [
         line           text NOT NULL CHECK (line IN ('save','grow','none')),
         action_type    text NOT NULL,
         payload_json   jsonb NOT NULL DEFAULT '{{}}',
+        evidence       jsonb NOT NULL,          -- signals cited (Retention playbook §1.4)
+        playbook_ref   text NOT NULL,           -- e.g. 'Retention playbook §3.1'
         autonomy_tier  text NOT NULL CHECK (autonomy_tier IN ('agent_alone','human_approves','human_only')),
         approved_by    text,
         status         text NOT NULL"""),
@@ -180,6 +188,44 @@ EVAL_TABLES: list[tuple[str, str]] = [
         notes                text"""),
 ]
 
+# Read views for the MCP role: everything time-dependent is cut at sim_state.sim_date.
+VIEWS = {
+    "v_txn_daily": """
+        SELECT t.* FROM (SELECT * FROM {s}.txn_daily UNION ALL SELECT * FROM {s}.txn_daily_future) t,
+               {s}.sim_state st
+        WHERE t.date <= st.sim_date""",
+    "v_device_health_daily": "SELECT d.* FROM {s}.device_health_daily d, {s}.sim_state st WHERE d.date <= st.sim_date",
+    "v_settlements": "SELECT x.* FROM {s}.settlements x, {s}.sim_state st WHERE x.date <= st.sim_date",
+    "v_deductions": "SELECT x.* FROM {s}.deductions x, {s}.sim_state st WHERE x.date <= st.sim_date",
+    "v_offers_history": "SELECT x.* FROM {s}.offers_history x, {s}.sim_state st WHERE x.date <= st.sim_date",
+    "v_tickets": """
+        SELECT t.ticket_id, t.merchant_id, t.opened_at,
+               CASE WHEN t.resolved_at::date <= st.sim_date THEN t.resolved_at END AS resolved_at,
+               t.channel, t.category,
+               CASE WHEN t.resolved_at::date > st.sim_date THEN 'in_progress' ELSE t.status END AS status,
+               t.summary, t.sentiment
+        FROM {s}.tickets t, {s}.sim_state st
+        WHERE t.opened_at::date <= st.sim_date""",
+    "v_merchant_fee_monthly": """
+        SELECT f.* FROM {s}.merchant_fee_monthly f, {s}.sim_state st
+        WHERE (f.month + interval '1 month' - interval '1 day')::date <= st.sim_date""",
+}
+
+# MCP role privileges. Column lists keep it from setting approval decisions or approved_by.
+MCP_GRANTS = [
+    "GRANT USAGE ON SCHEMA {s} TO {r}",
+    "GRANT SELECT ON {s}.zones, {s}.field_agents, {s}.merchants, {s}.sim_state TO {r}",
+    "GRANT SELECT ON " + ", ".join("{s}." + v for v in VIEWS) + " TO {r}",
+    "GRANT INSERT ON {s}.tickets, {s}.offers_history TO {r}",
+    "GRANT SELECT (ticket_id), UPDATE (status, resolved_at) ON {s}.tickets TO {r}",
+    "GRANT SELECT, INSERT ON {s}.crm_notes TO {r}",
+    "GRANT SELECT, INSERT, UPDATE (outcome, transcript_id) ON {s}.visits TO {r}",
+    "GRANT SELECT, UPDATE (status) ON {s}.actions TO {r}",
+    "GRANT INSERT (action_id, merchant_id, ts, line, action_type, payload_json, evidence, playbook_ref,"
+    " autonomy_tier, status) ON {s}.actions TO {r}",
+    "GRANT SELECT, INSERT (approval_id, action_id, requested_at) ON {s}.approvals TO {r}",
+]
+
 INDEXES = [
     "CREATE INDEX ON {s}.settlements (merchant_id, date)",
     "CREATE INDEX ON {s}.deductions (merchant_id, date)",
@@ -198,6 +244,26 @@ def _recreate(conn: psycopg.Connection, schema: str, tables: list[tuple[str, str
         conn.execute(f"DROP TABLE IF EXISTS {schema}.{name} CASCADE")
     for name, body in tables:
         conn.execute(f"CREATE TABLE {schema}.{name} ({body.format(s=schema)}\n)")
+
+
+def _ensure_mcp_role(conn: psycopg.Connection, schema: str) -> str:
+    s = get_settings()
+    role = s.postgres_mcp_user
+    pw = s.postgres_mcp_password.get_secret_value()
+    if not pw:
+        raise SystemExit("POSTGRES_MCP_PASSWORD is not set in .env")
+    exists = conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (role,)).fetchone()
+    verb = "ALTER" if exists else "CREATE"
+    conn.execute(sql.SQL(verb + " ROLE {} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD {}").format(
+        sql.Identifier(role), sql.Literal(pw)))
+    r = sql.Identifier(role).as_string(conn)
+    for stmt in MCP_GRANTS:
+        conn.execute(stmt.format(s=schema, r=r))
+    # Nothing on the hidden labels or the checkpointer, for this role or anyone else by default.
+    for other in (EVAL_SCHEMA, s.postgres_checkpoint_schema):
+        conn.execute(f"CREATE SCHEMA IF NOT EXISTS {other}")
+        conn.execute(f"REVOKE ALL ON SCHEMA {other} FROM PUBLIC, {r}")
+    return role
 
 
 def _copy(conn: psycopg.Connection, schema: str, name: str, path: Path) -> int:
@@ -229,6 +295,9 @@ def load(out_dir: Path) -> list[tuple[str, int, int]]:
             report.append((f"{schema}.{name}", 0, conn.execute(f"SELECT count(*) FROM {schema}.{name}").fetchone()[0]))
         for ddl in INDEXES:
             conn.execute(ddl.format(s=schema))
+        for name, body in VIEWS.items():
+            conn.execute(f"CREATE VIEW {schema}.{name} AS {body.format(s=schema)}")
+        _ensure_mcp_role(conn, schema)
         conn.execute("ANALYZE")
     return report
 
