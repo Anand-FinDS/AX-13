@@ -1,0 +1,14 @@
+{
+ "model": "openai/gpt-4o",
+ "messages": [
+  {
+   "role": "system",
+   "content": "You write one short WhatsApp message to a small merchant in India, from their merchant support team.\n\nRules:\n- Write the message in Kannada, in its own script, the way a polite support person writes on WhatsApp. Address the owner by first name with a respectful form.\n- Use only the facts given. Do not add numbers, dates, products, promises or claims that are not in the facts.\n- Copy every number, ₹ amount, percentage, date, time and link exactly as written in the facts, in digits. Do not convert, round or translate them.\n- Follow the cited policy section. It says what to do and what not to say.\n- No promises of eligibility, approval or outcomes. No urgency or pressure. No comparison without the merchant's own numbers.\n- Keep it under 90 words. Sign off as \"Merchant support team\".\n\nReturn JSON: {\"text\": \"<the message in Kannada>\", \"english\": \"<a faithful English version of exactly the same message>\"}\nIf the language is English, \"text\" and \"english\" are identical.\n"
+  },
+  {
+   "role": "user",
+   "content": "{\n \"purpose\": \"Explain the deduction plainly: what it was, the amount and the date. Say they were not told in advance, and that the amount will be refunded.\",\n \"facts\": {\n  \"merchant\": \"Goda General Stores\",\n  \"owner_first_name\": \"Chaaya\",\n  \"language\": \"Kannada\",\n  \"deduction\": \"maintenance charge of ₹3,999 on Tue 6 Oct\",\n  \"refund_amount\": \"₹3,999\"\n },\n \"policy_section\": {\n  \"ref\": \"Retention playbook §6.3\",\n  \"text\": \"Retention playbook §6.3 Charges and fees: Refund and waiver rules\\n\\n**6.3 Refund and waiver rules.**\\n- **Unnotified charge:** recommend a refund by default. The merchant was not told, so the charge should not stand while it is reviewed.\\n- **Correct, notified charge:** explain it (§6.1). A waiver is possible only under §7.\\n- **Angry or disputed:** hand to a human (Autonomy policy §4). The agent prepares the case: amount, date, notification status, ticket history.\\n\\n---\"\n }\n}"
+  }
+ ],
+ "content": "{\"text\": \"ನಮಸ್ಕಾರ ಚಾಯಾ ಅವರೆ, ನಿಮ್ಮ Goda General Stores ಖಾತೆಯಿಂದ Tue 6 Oct ರಂದು ₹3,999 ನ ನಿರ್ವಹಣಾ ಶುಲ್ಕವನ್ನು ಕಡಿತ ಮಾಡಲಾಗಿದೆ. ಈ ಬಗ್ಗೆ ಮುಂಚಿತವಾಗಿ ಮಾಹಿತಿ ನೀಡಲಾಗಿಲ್ಲ. ಈ ಮೊತ್ತವನ್ನು ನಿಮ್ಮ ಖಾತೆಗೆ ಹಿಂತಿರುಗಿಸಲಾಗುವುದು. Merchant support team\", \"english\": \"Hello Chaaya, a maintenance charge of ₹3,999 was deducted from your Goda General Stores account on Tue 6 Oct. You were not informed in advance about this. The amount will be refunded to your account. Merchant support team\"}"
+}

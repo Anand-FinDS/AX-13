@@ -1,0 +1,14 @@
+{
+ "model": "openai/gpt-4o",
+ "messages": [
+  {
+   "role": "system",
+   "content": "You write one short WhatsApp message to a small merchant in India, from their merchant support team.\n\nRules:\n- Write the message in Kannada, in its own script, the way a polite support person writes on WhatsApp. Address the owner by first name with a respectful form.\n- Use only the facts given. Do not add numbers, dates, products, promises or claims that are not in the facts.\n- Copy every number, ₹ amount, percentage, date, time and link exactly as written in the facts, in digits. Do not convert, round or translate them.\n- Follow the cited policy section. It says what to do and what not to say.\n- No promises of eligibility, approval or outcomes. No urgency or pressure. No comparison without the merchant's own numbers.\n- Keep it under 90 words. Sign off as \"Merchant support team\".\n\nReturn JSON: {\"text\": \"<the message in Kannada>\", \"english\": \"<a faithful English version of exactly the same message>\"}\nIf the language is English, \"text\" and \"english\" are identical.\n"
+  },
+  {
+   "role": "user",
+   "content": "{\n \"purpose\": \"Translate this message faithfully, every sentence in order: it has 5 sentences and the translation must have all 5. Add only a greeting and the sign-off. Keep every number and ₹ amount in digits exactly as written, and the meaning of 'proposed framework'.\",\n \"message_to_translate\": \"Under the proposed framework, a 0.4% fee applies to UPI payments above ₹2,000, capped at ₹300 per payment. Merchants with monthly UPI under ₹1 lakh are exempt. Last month you received ₹2,13,028 in UPI payments above ₹2,000. Your estimated fee is about ₹852 a month. Payments of ₹2,000 or less are not charged.\",\n \"facts\": {\n  \"merchant\": \"Lalla Chemists\",\n  \"owner_first_name\": \"Anmol\",\n  \"language\": \"Kannada\",\n  \"month\": \"October 2026\",\n  \"value_above_2000\": \"₹2,13,028\",\n  \"est_monthly_fee\": \"₹852\"\n }\n}"
+  }
+ ],
+ "content": "{\"text\": \"ನಮಸ್ಕಾರ ಅನ್ಮೋಲ್ ಅವರೆ, \\n\\nನಿರ್ದೇಶಿತ ಚಟುವಟಿಕೆಗಳ ಪ್ರಕಾರ, ₹2,000 ಕ್ಕಿಂತ ಹೆಚ್ಚು ಯುಪಿಐ ಪಾವತಿಗಳಿಗೆ 0.4% ಶುಲ್ಕ ಅನ್ವಯಿಸುತ್ತದೆ, ಪ್ರತಿ ಪಾವತಿಗೆ ₹300 ಗರಿಷ್ಠ. ಕಳೆದ ತಿಂಗಳು ನೀವು ₹2,000 ಕ್ಕಿಂತ ಹೆಚ್ಚು ಯುಪಿಐ ಪಾವತಿಗಳಲ್ಲಿ ₹2,13,028 ಸ್ವೀಕರಿಸಿದ್ದೀರಿ. ನಿಮ್ಮ ಅಂದಾಜು ಶುಲ್ಕವು ತಿಂಗಳಿಗೆ ಸುಮಾರು ₹852 ಆಗಿದೆ. ₹2,000 ಅಥವಾ ಕಡಿಮೆ ಪಾವತಿಗಳಿಗೆ ಶುಲ್ಕವಿಲ್ಲ.\\n\\nMerchant support team\", \"english\": \"Hello Anmol,\\n\\nUnder the proposed framework, a 0.4% fee applies to UPI payments above ₹2,000, capped at ₹300 per payment. Last month you received ₹2,13,028 in UPI payments above ₹2,000. Your estimated fee is about ₹852 a month. Payments of ₹2,000 or less are not charged.\\n\\nMerchant support team\"}"
+}

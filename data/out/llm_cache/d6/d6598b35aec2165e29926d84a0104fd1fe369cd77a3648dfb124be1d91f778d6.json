@@ -1,0 +1,14 @@
+{
+ "model": "openai/gpt-4o",
+ "messages": [
+  {
+   "role": "system",
+   "content": "You write one short WhatsApp message to a small merchant in India, from their merchant support team.\n\nRules:\n- Write the message in Kannada, in its own script, the way a polite support person writes on WhatsApp. Address the owner by first name with a respectful form.\n- Use only the facts given. Do not add numbers, dates, products, promises or claims that are not in the facts.\n- Copy every number, ₹ amount, percentage, date, time and link exactly as written in the facts, in digits. Do not convert, round or translate them.\n- Follow the cited policy section. It says what to do and what not to say.\n- No promises of eligibility, approval or outcomes. No urgency or pressure. No comparison without the merchant's own numbers.\n- Keep it under 90 words. Sign off as \"Merchant support team\".\n\nReturn JSON: {\"text\": \"<the message in Kannada>\", \"english\": \"<a faithful English version of exactly the same message>\"}\nIf the language is English, \"text\" and \"english\" are identical.\n"
+  },
+  {
+   "role": "user",
+   "content": "{\n \"purpose\": \"Payments fail at rush hours because of the mobile network, not the device. Give the peak-hour guidance from the policy section. Say no technician is needed because the device itself is fine.\",\n \"facts\": {\n  \"merchant\": \"Viswanathan Super Market\",\n  \"owner_first_name\": \"Anika\",\n  \"language\": \"Kannada\",\n  \"peak_errors_per_day\": 15.7,\n  \"offpeak_errors_per_day\": 0.6\n },\n \"policy_section\": {\n  \"ref\": \"Retention playbook §4.2\",\n  \"text\": \"Retention playbook §4.2 Network issues: Peak-hour guidance message\\n\\n**4.2 Peak-hour guidance message.** Send a short message in the merchant's language:\\n- Where the device sits matters: near the shop front, away from metal shutters.\\n- If the device has a SIM, ask whether a Wi-Fi option is available in the shop.\\n- Keep the printed QR visible as a backup during rush hours.\\n- Ask customers to wait for the announcement before leaving.\"\n }\n}"
+  }
+ ],
+ "content": "{\"text\": \"ಆನಿಕಾ ಅವರೆ, ನಿಮ್ಮ Viswanathan Super Market ನಲ್ಲಿ ಪೀಕ್ ಅವಧಿಯಲ್ಲಿ 15.7 ದೋಷಗಳು ಸಂಭವಿಸುತ್ತಿವೆ. ದಯವಿಟ್ಟು ಸಾಧನವನ್ನು ಅಂಗಡಿಯ ಮುಂಭಾಗದಲ್ಲಿ ಇಡಿ, ಲೋಹದ ಶಟರ್‌ಗಳಿಂದ ದೂರವಿರಿಸಿ. Wi-Fi ಆಯ್ಕೆಯಿದ್ದರೆ ಬಳಸಬಹುದು. ತುರ್ತು ಸಮಯದಲ್ಲಿ ಮುದ್ರಿತ QR ಅನ್ನು ಕಾಣುವಂತೆ ಇಡಿ. ಗ್ರಾಹಕರು ಘೋಷಣೆಯವರೆಗೆ ಕಾಯಲು ವಿನಂತಿಸಿ. ಸಾಧನ ಸರಿಯಾಗಿದೆ, ತಂತ್ರಜ್ಞನ ಅಗತ್ಯವಿಲ್ಲ. \\n\\nMerchant support team\", \"english\": \"Dear Anika, your Viswanathan Super Market experiences 15.7 errors during peak hours. Please place the device near the shop front, away from metal shutters. Use Wi-Fi if available. Keep the printed QR visible during rush hours. Request customers to wait for the announcement. The device is fine, no technician needed.\\n\\nMerchant support team\"}"
+}

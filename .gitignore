@@ -4,6 +4,10 @@ __pycache__/
 *.pyc
 data/out/*
 !data/out/sample/
+# LLM and embedding caches: a fresh clone replays the demo with no API calls
+!data/out/llm_cache/
+!data/out/embed_cache/
+!data/out/doc_embeddings.json
 audio/*.wav
 .ruff_cache/
 .pytest_cache/

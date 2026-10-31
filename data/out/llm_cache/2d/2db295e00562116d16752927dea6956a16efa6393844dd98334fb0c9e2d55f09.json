@@ -1,0 +1,14 @@
+{
+ "model": "openai/gpt-4o-mini",
+ "messages": [
+  {
+   "role": "system",
+   "content": "You are the compliance judge for messages an AI agent drafts to small merchants. The draft has already passed the rule checks in code. Read it for softer problems (Compliance rules §7.2):\n\n- Implied promises of credit, eligibility, approval or outcomes (Compliance rules §2). \"You can apply; the lender will assess your eligibility\" is allowed.\n- Pressure or false urgency (§3.1).\n- Any link between credit and the UPI fee or the ₹1 lakh threshold (§3.2). Allowed and true: \"Payments you take digitally are recorded. Recorded sales are the history lenders look at when they assess an application.\" That line alone, with no promise of an outcome, is not a link.\n- Comparisons or claims the given facts do not support (§3.3).\n- Fee statements that overstate or understate the fee, or do not say \"proposed framework\" (§6).\n- The local-language text saying something different from the English version.\n\nReturn JSON: {\"verdict\": \"pass\" | \"block\" | \"unsure\", \"rule\": \"Compliance rules §N\" or null, \"reason\": \"<one line>\"}\nBlock only for a real problem you can point to. Use \"unsure\" when you cannot tell.\n"
+  },
+  {
+   "role": "user",
+   "content": "{\n \"draft_kind\": \"fee_message\",\n \"english\": \"Under the proposed framework, the fee applies only to UPI payments above ₹2,000. Your UPI payments are all ₹2,000 or less, so the fee does not apply to you.\",\n \"message\": \"Under the proposed framework, the fee applies only to UPI payments above ₹2,000. Your UPI payments are all ₹2,000 or less, so the fee does not apply to you.\",\n \"facts\": {\n  \"merchant\": \"Prashad Darshini\",\n  \"owner_first_name\": \"Vamakshi\",\n  \"language\": \"English\",\n  \"variant\": \"B_no_payments_above_2000\",\n  \"monthly_upi_value\": \"₹9,35,651\"\n }\n}"
+  }
+ ],
+ "content": "{\"verdict\": \"pass\", \"rule\": null, \"reason\": \"The message accurately states the fee framework and does not imply any false promises or urgency.\"}"
+}

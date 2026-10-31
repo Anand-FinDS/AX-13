@@ -1,0 +1,14 @@
+{
+ "model": "openai/gpt-4o",
+ "messages": [
+  {
+   "role": "system",
+   "content": "You write one short WhatsApp message to a small merchant in India, from their merchant support team.\n\nRules:\n- Write the message in Kannada, in its own script, the way a polite support person writes on WhatsApp. Address the owner by first name with a respectful form.\n- Use only the facts given. Do not add numbers, dates, products, promises or claims that are not in the facts.\n- Copy every number, ₹ amount, percentage, date, time and link exactly as written in the facts, in digits. Do not convert, round or translate them.\n- Follow the cited policy section. It says what to do and what not to say.\n- No promises of eligibility, approval or outcomes. No urgency or pressure. No comparison without the merchant's own numbers.\n- Keep it under 90 words. Sign off as \"Merchant support team\".\n\nReturn JSON: {\"text\": \"<the message in Kannada>\", \"english\": \"<a faithful English version of exactly the same message>\"}\nIf the language is English, \"text\" and \"english\" are identical.\n"
+  },
+  {
+   "role": "user",
+   "content": "{\n \"purpose\": \"Translate this message faithfully, every sentence in order: it has 2 sentences and the translation must have all 2. Add only a greeting and the sign-off. Keep every number and ₹ amount in digits exactly as written, and the meaning of 'proposed framework'.\",\n \"message_to_translate\": \"Under the proposed framework, the fee applies only to UPI payments above ₹2,000. Your UPI payments are all ₹2,000 or less, so the fee does not apply to you.\",\n \"facts\": {\n  \"merchant\": \"Sarraf Fresh Mart\",\n  \"owner_first_name\": \"Sachi\",\n  \"language\": \"Kannada\",\n  \"variant\": \"B_no_payments_above_2000\",\n  \"monthly_upi_value\": \"₹3,23,289\"\n }\n}"
+  }
+ ],
+ "content": "{\"text\": \"ನಮಸ್ಕಾರ ಸಚ್ಚಿ ಅವರೆ, ಪ್ರಸ್ತಾವಿತ ಚಟುವಟಿಕೆ ಅಡಿಯಲ್ಲಿ, ₹2,000 ಕ್ಕಿಂತ ಹೆಚ್ಚು ಇರುವ ಯುಪಿಐ ಪಾವತಿಗಳಿಗೆ ಮಾತ್ರ ಶುಲ್ಕ ಅನ್ವಯಿಸುತ್ತದೆ. ನಿಮ್ಮ ಎಲ್ಲಾ ಯುಪಿಐ ಪಾವತಿಗಳು ₹2,000 ಅಥವಾ ಕಡಿಮೆ ಇವೆ, ಆದ್ದರಿಂದ ನಿಮಗೆ ಶುಲ್ಕ ಅನ್ವಯಿಸುವುದಿಲ್ಲ. \\n\\nಮರ್ಚೆಂಟ್ ಸಪೋರ್ಟ್ ತಂಡ\", \"english\": \"Hello Sachi, Under the proposed framework, the fee applies only to UPI payments above ₹2,000. Your UPI payments are all ₹2,000 or less, so the fee does not apply to you. \\n\\nMerchant support team\"}"
+}

@@ -1,0 +1,14 @@
+{
+ "model": "openai/gpt-4o",
+ "messages": [
+  {
+   "role": "system",
+   "content": "You write one short WhatsApp message to a small merchant in India, from their merchant support team.\n\nRules:\n- Write the message in Kannada, in its own script, the way a polite support person writes on WhatsApp. Address the owner by first name with a respectful form.\n- Use only the facts given. Do not add numbers, dates, products, promises or claims that are not in the facts.\n- Copy every number, ₹ amount, percentage, date, time and link exactly as written in the facts, in digits. Do not convert, round or translate them.\n- Follow the cited policy section. It says what to do and what not to say.\n- No promises of eligibility, approval or outcomes. No urgency or pressure. No comparison without the merchant's own numbers.\n- Keep it under 90 words. Sign off as \"Merchant support team\".\n\nReturn JSON: {\"text\": \"<the message in Kannada>\", \"english\": \"<a faithful English version of exactly the same message>\"}\nIf the language is English, \"text\" and \"english\" are identical.\n"
+  },
+  {
+   "role": "user",
+   "content": "{\n \"purpose\": \"Translate this message faithfully, every sentence in order: it has 3 sentences and the translation must have all 3. Add only a greeting and the sign-off. Keep every number and ₹ amount in digits exactly as written, and the meaning of 'proposed framework'.\",\n \"message_to_translate\": \"Under the proposed framework, the new UPI fee does not apply to you. Your monthly UPI is ₹3,903, under the ₹1 lakh exemption. Nothing changes for you.\",\n \"facts\": {\n  \"merchant\": \"Atwal Fresh Mart\",\n  \"owner_first_name\": \"Anya\",\n  \"language\": \"Kannada\",\n  \"variant\": \"A_exempt\",\n  \"monthly_upi_value\": \"₹3,903\"\n },\n \"previous_draft_blocked\": {\n  \"english\": \"Respected Anya, under the proposed framework, the new UPI fee does not apply to you. Your monthly UPI is ₹3,903, under the ₹1 lakh exemption. Nothing changes for you. \\n\\nMerchant support team\",\n  \"reasons\": [\n   \"Compliance rules §3.2: The message links the UPI fee exemption directly to the ₹1 lakh threshold.\"\n  ]\n },\n \"instruction\": \"Write a new draft that fixes every reason the previous one was blocked.\"\n}"
+  }
+ ],
+ "content": "{\"text\": \"ಆನ್ಯ ಅವರೇ, ಪ್ರಸ್ತಾಪಿತ ರೂಪರೇಖೆಯ ಪ್ರಕಾರ, ಹೊಸ UPI ಶುಲ್ಕವು ನಿಮ್ಮಿಗೆ ಅನ್ವಯಿಸುವುದಿಲ್ಲ. ನಿಮ್ಮ ಮಾಸಿಕ UPI ₹3,903 ಆಗಿದ್ದು, ಯಾವುದೇ ಬದಲಾವಣೆ ಇಲ್ಲ. \\n\\nMerchant support team\", \"english\": \"Respected Anya, under the proposed framework, the new UPI fee does not apply to you. Your monthly UPI is ₹3,903, and there is no change. \\n\\nMerchant support team\"}"
+}

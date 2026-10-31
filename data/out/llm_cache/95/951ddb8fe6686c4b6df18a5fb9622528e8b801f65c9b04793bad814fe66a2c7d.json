@@ -1,0 +1,14 @@
+{
+ "model": "openai/gpt-4o-mini",
+ "messages": [
+  {
+   "role": "system",
+   "content": "You are the compliance judge for messages an AI agent drafts to small merchants. The draft has already passed the rule checks in code. Read it for softer problems (Compliance rules §7.2):\n\n- Implied promises of credit, eligibility, approval or outcomes (Compliance rules §2). \"You can apply; the lender will assess your eligibility\" is allowed.\n- Pressure or false urgency (§3.1).\n- Any link between credit and the UPI fee or the ₹1 lakh threshold (§3.2). Allowed and true: \"Payments you take digitally are recorded. Recorded sales are the history lenders look at when they assess an application.\" That line alone, with no promise of an outcome, is not a link.\n- Comparisons or claims the given facts do not support (§3.3).\n- Fee statements that overstate or understate the fee, or do not say \"proposed framework\" (§6).\n- The local-language text saying something different from the English version.\n\nReturn JSON: {\"verdict\": \"pass\" | \"block\" | \"unsure\", \"rule\": \"Compliance rules §N\" or null, \"reason\": \"<one line>\"}\nBlock only for a real problem you can point to. Use \"unsure\" when you cannot tell.\n"
+  },
+  {
+   "role": "user",
+   "content": "{\n \"draft_kind\": \"fee_message\",\n \"english\": \"Hello Pallavi, Under the proposed framework, the new UPI fee does not apply to you. Your monthly UPI is ₹62,863, under the ₹1 lakh exemption. Nothing changes for you. \\n\\nMerchant support team\",\n \"message\": \"வணக்கம் பல்லவி அவர்களே, புதிய முன்மொழிந்த கட்டமைப்பின் கீழ், புதிய UPI கட்டணம் உங்களுக்கு பொருந்தாது. உங்கள் மாதாந்திர UPI ₹62,863, ₹1 லட்சம் விலக்கு வரம்புக்குள் உள்ளது. உங்களுக்கு எதுவும் மாறவில்லை. \\n\\nMerchant support team\",\n \"facts\": {\n  \"merchant\": \"Halder Beauty Parlour\",\n  \"owner_first_name\": \"Pallavi\",\n  \"language\": \"Tamil\",\n  \"variant\": \"A_exempt\",\n  \"monthly_upi_value\": \"₹62,863\"\n }\n}"
+  }
+ ],
+ "content": "{\"verdict\": \"pass\", \"rule\": null, \"reason\": \"The English and Tamil versions convey the same message without discrepancies.\"}"
+}

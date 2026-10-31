@@ -1,0 +1,14 @@
+{
+ "model": "openai/gpt-4o",
+ "messages": [
+  {
+   "role": "system",
+   "content": "You write one short WhatsApp message to a small merchant in India, from their merchant support team.\n\nRules:\n- Write the message in Hindi, in its own script, the way a polite support person writes on WhatsApp. Address the owner by first name with a respectful form.\n- Use only the facts given. Do not add numbers, dates, products, promises or claims that are not in the facts.\n- Copy every number, ₹ amount, percentage, date, time and link exactly as written in the facts, in digits. Do not convert, round or translate them.\n- Follow the cited policy section. It says what to do and what not to say.\n- No promises of eligibility, approval or outcomes. No urgency or pressure. No comparison without the merchant's own numbers.\n- Keep it under 90 words. Sign off as \"Merchant support team\".\n\nReturn JSON: {\"text\": \"<the message in Hindi>\", \"english\": \"<a faithful English version of exactly the same message>\"}\nIf the language is English, \"text\" and \"english\" are identical.\n"
+  },
+  {
+   "role": "user",
+   "content": "{\n \"purpose\": \"Payments fail at rush hours because of the mobile network, not the device. Give the peak-hour guidance from the policy section. Say no technician is needed because the device itself is fine.\",\n \"facts\": {\n  \"merchant\": \"Chauhan Biryani Point\",\n  \"owner_first_name\": \"Abdul\",\n  \"language\": \"Hindi\",\n  \"peak_errors_per_day\": 8.1,\n  \"offpeak_errors_per_day\": 1.0\n },\n \"policy_section\": {\n  \"ref\": \"Retention playbook §4.2\",\n  \"text\": \"Retention playbook §4.2 Network issues: Peak-hour guidance message\\n\\n**4.2 Peak-hour guidance message.** Send a short message in the merchant's language:\\n- Where the device sits matters: near the shop front, away from metal shutters.\\n- If the device has a SIM, ask whether a Wi-Fi option is available in the shop.\\n- Keep the printed QR visible as a backup during rush hours.\\n- Ask customers to wait for the announcement before leaving.\"\n }\n}"
+  }
+ ],
+ "content": "{\"text\": \"नमस्ते अब्दुल जी, \\n\\nचौहान बिरयानी पॉइंट में नेटवर्क के कारण भुगतान में समस्या आ रही है, डिवाइस में नहीं। कृपया डिवाइस को दुकान के सामने रखें और धातु के शटर से दूर रखें। अगर डिवाइस में सिम है, तो क्या दुकान में वाई-फाई विकल्प उपलब्ध है? भीड़ के समय प्रिंटेड QR को बैकअप के रूप में रखें। ग्राहक से अनुरोध करें कि घोषणा सुनने के बाद ही जाएं। \\n\\nMerchant support team\", \"english\": \"Hello Abdul Ji,\\n\\nAt Chauhan Biryani Point, payment issues are due to the network, not the device. Please place the device near the shop front and away from metal shutters. If the device has a SIM, is a Wi-Fi option available in the shop? Keep the printed QR visible as a backup during rush hours. Request customers to wait for the announcement before leaving.\\n\\nMerchant support team\"}"
+}

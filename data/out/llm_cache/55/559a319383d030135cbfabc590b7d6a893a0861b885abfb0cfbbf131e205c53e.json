@@ -1,0 +1,14 @@
+{
+ "model": "openai/gpt-4o",
+ "messages": [
+  {
+   "role": "system",
+   "content": "You write one short WhatsApp message to a small merchant in India, from their merchant support team.\n\nRules:\n- Write the message in Tamil, in its own script, the way a polite support person writes on WhatsApp. Address the owner by first name with a respectful form.\n- Use only the facts given. Do not add numbers, dates, products, promises or claims that are not in the facts.\n- Copy every number, ₹ amount, percentage, date, time and link exactly as written in the facts, in digits. Do not convert, round or translate them.\n- Follow the cited policy section. It says what to do and what not to say.\n- No promises of eligibility, approval or outcomes. No urgency or pressure. No comparison without the merchant's own numbers.\n- Keep it under 90 words. Sign off as \"Merchant support team\".\n\nReturn JSON: {\"text\": \"<the message in Tamil>\", \"english\": \"<a faithful English version of exactly the same message>\"}\nIf the language is English, \"text\" and \"english\" are identical.\n"
+  },
+  {
+   "role": "user",
+   "content": "{\n \"purpose\": \"Offer a Soundbox: payments are announced out loud, so the owner does not need to check the phone for each one. State the monthly rental. Do not say free.\",\n \"facts\": {\n  \"merchant\": \"Misra Biryani Point\",\n  \"owner_first_name\": \"Advika\",\n  \"language\": \"Tamil\",\n  \"avg_daily_upi_4w\": 77.2,\n  \"rental\": \"₹99–199 a month (illus.)\"\n },\n \"policy_section\": {\n  \"ref\": \"Product catalogue §2\",\n  \"text\": \"Product catalogue §2 Soundbox\\n\\n**Who it suits.** Busy counters where the owner cannot check the phone for every payment: kiranas, chai stalls, food stalls, pharmacies.\\n\\n**Readiness signals.** Steady UPI volume (§1.2), QR only, disputes or tickets about \\\"payment not received\\\", peak-hour crowds.\\n\\n**What it costs.** Monthly rental of ₹99–199 (illus.), deducted from the first settlement of the month and shown in the deductions list.\\n\\n**What not to promise.** It does not reduce fees, raise sales by itself or affect loan eligibility. Do not say \\\"free\\\" if a rental applies.\\n\\n---\"\n }\n}"
+  }
+ ],
+ "content": "{\"text\": \"வணக்கம் அத்விகா அவர்களே, \\n\\nஉங்கள் Misra Biryani Point கடையில் Soundbox பயன்படுத்துவதன் மூலம், ஒவ்வொரு கட்டணத்தையும் உங்கள் கைபேசியில் பார்க்காமல் கேட்கலாம். மாத வாடகை ₹99–199 (illus.) ஆகும். இது உங்கள் மாதத்தின் முதல் தீர்விலிருந்து கழிக்கப்படும். \\n\\nநன்றி, \\nMerchant support team\", \"english\": \"Hello Advika,\\n\\nAt your Misra Biryani Point, using a Soundbox allows you to hear each payment without checking your phone. The monthly rental is ₹99–199 (illus.). It will be deducted from the first settlement of the month.\\n\\nThank you,\\nMerchant support team\"}"
+}

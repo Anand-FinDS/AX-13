@@ -1,0 +1,14 @@
+{
+ "model": "openai/gpt-4o-mini",
+ "messages": [
+  {
+   "role": "system",
+   "content": "You are the compliance judge for messages an AI agent drafts to small merchants. The draft has already passed the rule checks in code. Read it for softer problems (Compliance rules §7.2):\n\n- Implied promises of credit, eligibility, approval or outcomes (Compliance rules §2). \"You can apply; the lender will assess your eligibility\" is allowed.\n- Pressure or false urgency (§3.1).\n- Any link between credit and the UPI fee or the ₹1 lakh threshold (§3.2). Allowed and true: \"Payments you take digitally are recorded. Recorded sales are the history lenders look at when they assess an application.\" That line alone, with no promise of an outcome, is not a link.\n- Comparisons or claims the given facts do not support (§3.3).\n- Fee statements that overstate or understate the fee, or do not say \"proposed framework\" (§6).\n- The local-language text saying something different from the English version.\n\nReturn JSON: {\"verdict\": \"pass\" | \"block\" | \"unsure\", \"rule\": \"Compliance rules §N\" or null, \"reason\": \"<one line>\"}\nBlock only for a real problem you can point to. Use \"unsure\" when you cannot tell.\n"
+  },
+  {
+   "role": "user",
+   "content": "{\n \"draft_kind\": \"cost_comparison\",\n \"english\": \"Hello Meena,\\n\\nUnder the proposed framework, the new UPI fee does not apply to you. Your monthly UPI is ₹96,994, under the ₹1 lakh exemption. Nothing changes for you. You took ₹8,500 in cash. If above ₹1 lakh, the fee would have been ₹148. Payments you take digitally are recorded. Recorded sales are the history lenders look at when they assess an application.\\n\\nMerchant support team\",\n \"message\": \"ನಮಸ್ಕಾರ ಮೀನಾ,\\n\\nನಿರ್ದೇಶಿತ ರೂಪರೇಖೆಯಡಿ, ಹೊಸ UPI ಶುಲ್ಕವು ನಿಮಗೆ ಅನ್ವಯಿಸುವುದಿಲ್ಲ. ನಿಮ್ಮ ಮಾಸಿಕ UPI ₹96,994, ₹1 ಲಕ್ಷ ವಿನಾಯಿತಿಯ ಅಡಿಯಲ್ಲಿ ಇದೆ. ಏನೂ ಬದಲಾಗುವುದಿಲ್ಲ. ನೀವು ₹8,500 ನಗದು ಸ್ವೀಕರಿಸಿದ್ದೀರಿ. ₹1 ಲಕ್ಷ ಮೀರಿದರೆ, ₹148 ಶುಲ್ಕವಾಗುತ್ತಿತ್ತು. ಡಿಜಿಟಲ್ ಪಾವತಿಗಳು ದಾಖಲಿಸಲಾಗುತ್ತವೆ. ದಾಖಲಾದ ಮಾರಾಟಗಳು ಸಾಲದ ಅರ್ಜಿಯನ್ನು ಮೌಲ್ಯಮಾಪನ ಮಾಡುವಾಗ ಸಾಲದಾತರು ನೋಡುತ್ತಾರೆ.\\n\\nMerchant support team\",\n \"facts\": {\n  \"merchant\": \"Meena Ladies Tailor & Boutique\",\n  \"owner_first_name\": \"Meena\",\n  \"language\": \"Kannada\",\n  \"month\": \"October 2026\",\n  \"monthly_upi_value\": \"₹96,994\",\n  \"value_above_2000\": \"₹37,120\",\n  \"fee_if_above_1_lakh\": \"₹148\",\n  \"month_end_cash_estimate\": \"₹8,500\",\n  \"fee_rule\": \"0.4% only on UPI payments above ₹2,000, capped at ₹300 per payment; payments of ₹2,000 or less are never charged; monthly UPI under ₹1 lakh is exempt (proposed framework)\",\n  \"required_line\": \"Payments you take digitally are recorded. Recorded sales are the history lenders look at when they assess an application.\"\n }\n}"
+  }
+ ],
+ "content": "{\n  \"verdict\": \"pass\",\n  \"rule\": null,\n  \"reason\": \"The draft complies with all rules and does not contain any problematic statements.\"\n}"
+}

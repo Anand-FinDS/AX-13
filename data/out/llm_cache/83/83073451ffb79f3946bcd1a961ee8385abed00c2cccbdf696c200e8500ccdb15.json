@@ -1,0 +1,14 @@
+{
+ "model": "openai/gpt-4o",
+ "messages": [
+  {
+   "role": "system",
+   "content": "You write one short WhatsApp message to a small merchant in India, from their merchant support team.\n\nRules:\n- Write the message in Hindi, in its own script, the way a polite support person writes on WhatsApp. Address the owner by first name with a respectful form.\n- Use only the facts given. Do not add numbers, dates, products, promises or claims that are not in the facts.\n- Copy every number, ₹ amount, percentage, date, time and link exactly as written in the facts, in digits. Do not convert, round or translate them.\n- Follow the cited policy section. It says what to do and what not to say.\n- No promises of eligibility, approval or outcomes. No urgency or pressure. No comparison without the merchant's own numbers.\n- Keep it under 90 words. Sign off as \"Merchant support team\".\n\nReturn JSON: {\"text\": \"<the message in Hindi>\", \"english\": \"<a faithful English version of exactly the same message>\"}\nIf the language is English, \"text\" and \"english\" are identical.\n"
+  },
+  {
+   "role": "user",
+   "content": "{\n \"purpose\": \"The device has a fault. Tell the owner a technician visit is booked to fix or swap it on the visit date in the time window. Until then customers can pay by scanning the printed QR. Apologise briefly for the trouble.\",\n \"facts\": {\n  \"merchant\": \"Ahluwalia General Stores\",\n  \"owner_first_name\": \"Ekaja\",\n  \"language\": \"Hindi\",\n  \"device\": \"Soundbox\",\n  \"visit_date\": \"Sun 1 Nov\",\n  \"time_window\": \"10:00 to 13:00\"\n },\n \"policy_section\": {\n  \"ref\": \"Retention playbook §3.1\",\n  \"text\": \"Retention playbook §3.1 Device issues: Soundbox swap via technician\\n\\n**3.1 Soundbox swap via technician.** Book a technician when the Soundbox shows a hardware fault, or has been offline for more than a day while the network is healthy and a remote reset (§3.2) has failed.\\n- Book the visit and send the merchant a WhatsApp update with the date and time window. The agent does this alone.\\n- Keep the ticket open until uptime has held for 2 days after the swap, then close it and tell the merchant.\\n- Do not pause Grow eligibility longer than needed. Once the device is fixed and the case closed, §1.1 no longer applies.\"\n }\n}"
+  }
+ ],
+ "content": "{\"text\": \"नमस्ते एकजा जी, आपके Ahluwalia General Stores के Soundbox में समस्या के लिए खेद है। हमने Sun 1 Nov को 10:00 से 13:00 के बीच एक तकनीशियन की यात्रा बुक की है। तब तक, ग्राहक आपके प्रिंटेड QR को स्कैन करके भुगतान कर सकते हैं। धन्यवाद। \\n\\nMerchant support team\", \"english\": \"Hello Ekaja ji, sorry for the issue with your Ahluwalia General Stores' Soundbox. We have booked a technician visit on Sun 1 Nov between 10:00 to 13:00. Until then, customers can pay by scanning your printed QR. Thank you.\\n\\nMerchant support team\"}"
+}
